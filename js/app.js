@@ -606,7 +606,7 @@ function initMonthSelectors() {
   const curYear = new Date().getFullYear();
   for (let y = curYear - 2; y <= curYear + 1; y++) {
     const o = document.createElement('option');
-    o.value = y; o.textContent = y + 543 + ' (' + y + ')';
+    o.value = y; o.textContent = y;
     if (y === state.year) o.selected = true;
     ySel.appendChild(o);
   }
