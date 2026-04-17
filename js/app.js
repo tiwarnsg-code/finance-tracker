@@ -1187,11 +1187,33 @@ async function saveSavingsRecord() {
   try {
     const data = { date, type, amount, description };
     if (id) {
+      // Edit: only update savings record (transaction was already created on original save)
       await api.updateSavings({ ...data, id, created_at: (state.data.savings.find(r => r.id === id) || {}).created_at || '' });
       showToast('แก้ไขสำเร็จ ✓', 'success');
     } else {
+      // Step 1: save savings record
       await api.addSavings(data);
-      showToast(type === 'deposit' ? `💰 ออมเงิน ${fmt(amount)} สำเร็จ` : `↩️ นำออก ${fmt(amount)} สำเร็จ`, 'success');
+
+      // Step 2: mirror as income/expense transaction in main ledger
+      const txDesc = type === 'deposit'
+        ? '🏦 ออมเงิน' + (description ? ': ' + description : '')
+        : '🏦 นำเงินออมกลับบัญชีหลัก' + (description ? ': ' + description : '');
+      const txData = {
+        date,
+        type:        type === 'deposit' ? 'expense' : 'income',
+        amount,
+        category:    type === 'deposit' ? 'other_ex' : 'other_in',
+        description: txDesc,
+        tags:        'savings',
+      };
+      await api.addTransaction(txData);
+
+      showToast(
+        type === 'deposit'
+          ? `💰 ออมเงิน ${fmt(amount)} สำเร็จ — หักจากบัญชีหลักแล้ว`
+          : `↩️ นำออก ${fmt(amount)} กลับบัญชีหลักแล้ว`,
+        'success'
+      );
     }
     closeModal('modal-savings');
     await loadData(true);
