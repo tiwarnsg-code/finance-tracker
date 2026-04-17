@@ -79,6 +79,30 @@ const state = {
   charts: {},
 };
 
+// ===== DATA CACHE (per month key) =====
+const _dataCache = {};
+function _cacheKey(y, m, vm) { return `${y}-${m}-${vm}`; }
+function _invalidateCache(y, m) {
+  // Remove all cache entries that overlap the given month
+  Object.keys(_dataCache).forEach(k => {
+    const [ky, km] = k.split('-').map(Number);
+    if (ky === y && km === m) delete _dataCache[k];
+  });
+}
+
+// ===== SAVE GUARD (prevent double-submit) =====
+let _saving = false;
+function _lockSave(btn) {
+  if (_saving) return false;
+  _saving = true;
+  if (btn) { btn.disabled = true; btn._origText = btn.textContent; btn.textContent = 'กำลังบันทึก...'; }
+  return true;
+}
+function _unlockSave(btn) {
+  _saving = false;
+  if (btn) { btn.disabled = false; btn.textContent = btn._origText || btn.textContent; }
+}
+
 // ===== INIT =====
 function init() {
   initTheme();
@@ -311,28 +335,44 @@ function initMonthSelectors() {
 function onMonthChange() {
   state.month = parseInt(document.getElementById('month-select').value);
   state.year = parseInt(document.getElementById('year-select').value);
-  loadData();
+  loadData(false, false); // use cache if available → instant switch
 }
 
 function onMonthRangeChange() {
   state.viewMonths = parseInt(document.getElementById('months-range-select').value) || 1;
-  loadData();
+  loadData(false, false);
 }
 
 // ===== DATA LOADING =====
-async function loadData(silent = false) {
+function _applyData(data) {
+  state.data.transactions     = data.transactions     || [];
+  state.data.creditCards      = data.creditCards      || [];
+  state.data.creditTransactions = data.creditTransactions || [];
+  state.data.fixedCosts       = data.fixedCosts       || [];
+  state.data.monthlyFixed     = data.monthlyFixed     || [];
+  state.data.summary          = data.summary          || {};
+  state.data.savings          = data.savings          || [];
+  navigate(state.view);
+}
+
+// forceRefresh=true → bypass cache (used by Refresh button & post-mutation reload)
+async function loadData(silent = false, forceRefresh = false) {
+  const key = _cacheKey(state.year, state.month, state.viewMonths);
+
+  // ── Serve from cache instantly ──────────────────────────────────────────
+  if (!forceRefresh && _dataCache[key]) {
+    _applyData(_dataCache[key]);
+    setSyncStatus('synced');
+    return; // no toast, no spinner — instant
+  }
+
+  // ── Fetch from API ──────────────────────────────────────────────────────
   if (!silent) showLoading();
   setSyncStatus('syncing');
   try {
     const data = await api.getAllData({ year: state.year, month: state.month, months: state.viewMonths });
-    state.data.transactions = data.transactions || [];
-    state.data.creditCards = data.creditCards || [];
-    state.data.creditTransactions = data.creditTransactions || [];
-    state.data.fixedCosts = data.fixedCosts || [];
-    state.data.monthlyFixed = data.monthlyFixed || [];
-    state.data.summary = data.summary || {};
-    state.data.savings = data.savings || [];
-    navigate(state.view);
+    _dataCache[key] = data;           // store in cache
+    _applyData(data);
     setSyncStatus('synced');
     if (!silent) showToast('โหลดข้อมูลสำเร็จ', 'success');
   } catch (e) {
@@ -343,7 +383,17 @@ async function loadData(silent = false) {
   }
 }
 
-function refreshData() { loadData(); }
+// Refresh button → force re-fetch and update cache
+function refreshData() {
+  _invalidateCache(state.year, state.month);
+  loadData(false, true);
+}
+
+// Post-mutation: invalidate cache for this month then silent background refresh
+async function _reloadAfterMutate() {
+  _invalidateCache(state.year, state.month);
+  await loadData(true, true); // silent + force
+}
 
 // ===== DASHBOARD =====
 function renderDashboard() {
@@ -980,7 +1030,7 @@ async function payNextInstallment(planId, cardId, monthlyAmt, nextNum, totalMont
       (remaining > 0 ? ` · เหลืออีก ${remaining} งวด` : ' · ผ่อนครบแล้ว! 🎉'),
       'success'
     );
-    await loadData(true);
+    await _reloadAfterMutate();
   } catch (e) {
     showToast('เกิดข้อผิดพลาด: ' + e.message, 'error');
   } finally {
@@ -1183,6 +1233,8 @@ async function saveSavingsRecord() {
     }
   }
 
+  const btn = document.getElementById('savings-save-btn');
+  if (!_lockSave(btn)) return;
   showLoading();
   try {
     const data = { date, type, amount, description };
@@ -1216,9 +1268,9 @@ async function saveSavingsRecord() {
       );
     }
     closeModal('modal-savings');
-    await loadData(true);
+    await _reloadAfterMutate();
   } catch (e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
-  hideLoading();
+  finally { hideLoading(); _unlockSave(btn); }
 }
 
 async function confirmDeleteSavings(id, desc) {
@@ -1227,7 +1279,7 @@ async function confirmDeleteSavings(id, desc) {
   try {
     await api.deleteSavings(id);
     showToast('ลบสำเร็จ', 'success');
-    await loadData(true);
+    await _reloadAfterMutate();
   } catch (e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
   hideLoading();
 }
@@ -1648,6 +1700,8 @@ async function saveTransaction() {
     showToast('กรุณากรอกข้อมูลให้ครบ', 'error'); return;
   }
   const linkedFcId = document.getElementById('tx-linked-fc-id').value;
+  const btn = document.getElementById('tx-save-btn');
+  if (!_lockSave(btn)) return;
   showLoading();
   try {
     if (id) {
@@ -1666,9 +1720,9 @@ async function saveTransaction() {
       } catch(e) { /* non-fatal */ }
     }
     closeModal('modal-transaction');
-    await loadData(true);
+    await _reloadAfterMutate();
   } catch (e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
-  finally { hideLoading(); }
+  finally { hideLoading(); _unlockSave(btn); }
 }
 
 // ===== SLIP MODAL =====
@@ -1749,6 +1803,8 @@ async function saveSlipTransaction() {
   if (!data.date || !data.amount || !data.description) {
     showToast('กรุณากรอกข้อมูลให้ครบ', 'error'); return;
   }
+  const btn = document.getElementById('slip-save-btn');
+  if (!_lockSave(btn)) return;
   showLoading();
   try {
     await api.addTransaction(data);
@@ -1765,9 +1821,9 @@ async function saveSlipTransaction() {
     }
     showToast('บันทึกรายการจากสลิปสำเร็จ' + (linkedFcId ? ' และทำเครื่องหมายรายจ่ายคงที่แล้ว ✓' : ''), 'success');
     closeModal('modal-slip');
-    await loadData(true);
+    await _reloadAfterMutate();
   } catch (e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
-  finally { hideLoading(); }
+  finally { hideLoading(); _unlockSave(btn); }
 }
 
 // ===== OCR / SLIP SCANNING =====
@@ -2276,14 +2332,16 @@ async function saveCreditCard() {
     linked_card_id: linkedCardId,
   };
   if (!data.name || !data.credit_limit) { showToast('กรุณากรอกชื่อบัตรและวงเงิน', 'error'); return; }
+  const btn = document.getElementById('cc-save-btn');
+  if (!_lockSave(btn)) return;
   showLoading();
   try {
     if (id) { await api.updateCreditCard({ ...data, id }); showToast('แก้ไขบัตรสำเร็จ', 'success'); }
     else { await api.addCreditCard(data); showToast('เพิ่มบัตรสำเร็จ', 'success'); }
     closeModal('modal-credit-card');
-    await loadData(true);
+    await _reloadAfterMutate();
   } catch (e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
-  finally { hideLoading(); }
+  finally { hideLoading(); _unlockSave(btn); }
 }
 
 // ===== CREDIT TX KIND (charge vs payment) =====
@@ -2425,14 +2483,16 @@ async function saveCreditTransaction() {
   };
   if (!data.date || !data.amount) { showToast('กรุณากรอกวันที่และจำนวนเงิน', 'error'); return; }
   if (!isPayment && !data.description) { showToast('กรุณากรอกรายละเอียด', 'error'); return; }
+  const btn = document.getElementById('cctx-save-btn');
+  if (!_lockSave(btn)) return;
   showLoading();
   try {
     if (id) { await api.updateCreditTransaction({ ...data, id }); showToast('แก้ไขสำเร็จ', 'success'); }
     else { await api.addCreditTransaction(data); showToast(isPayment ? 'บันทึกยอดชำระบัตรสำเร็จ ✓' : (isInstall ? `เพิ่มแผนผ่อน ${totalMonths} งวด สำเร็จ ✓` : 'เพิ่มรายการสำเร็จ'), 'success'); }
     closeModal('modal-credit-tx');
-    await loadData(true);
+    await _reloadAfterMutate();
   } catch (e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
-  finally { hideLoading(); }
+  finally { hideLoading(); _unlockSave(btn); }
 }
 
 // ===== EMOJI PICKER (Fixed Costs) =====
@@ -2564,14 +2624,16 @@ async function saveFixedCost() {
     notes: document.getElementById('fc-notes').value,
   };
   if (!data.name || !data.amount) { showToast('กรุณากรอกชื่อและจำนวนเงิน', 'error'); return; }
+  const btn = document.getElementById('fc-save-btn');
+  if (!_lockSave(btn)) return;
   showLoading();
   try {
     if (id) { const fc = state.data.fixedCosts.find(f => String(f.id) === String(id)); await api.updateFixedCost({ ...fc, ...data }); showToast('แก้ไขสำเร็จ', 'success'); }
     else { await api.addFixedCost(data); showToast('เพิ่มรายจ่ายคงที่สำเร็จ', 'success'); }
     closeModal('modal-fixed-cost');
-    await loadData(true);
+    await _reloadAfterMutate();
   } catch (e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
-  finally { hideLoading(); }
+  finally { hideLoading(); _unlockSave(btn); }
 }
 
 async function toggleFixedPaid(fcId, paid) {
@@ -2579,7 +2641,7 @@ async function toggleFixedPaid(fcId, paid) {
   try {
     await api.setMonthlyFixed({ fixed_cost_id: fcId, year: state.year, month: state.month, paid });
     showToast(paid ? 'บันทึกว่าจ่ายแล้ว ✓' : 'ยกเลิกการจ่าย', paid ? 'success' : 'warning');
-    await loadData(true);
+    await _reloadAfterMutate();
   } catch (e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
   finally { hideLoading(); }
 }
@@ -2603,7 +2665,7 @@ async function doDelete(type, id) {
       case 'fixedCost': await api.deleteFixedCost(id); break;
     }
     showToast('ลบสำเร็จ', 'success');
-    await loadData(true);
+    await _reloadAfterMutate();
   } catch (e) { showToast('ลบไม่ได้: ' + e.message, 'error'); }
   finally { hideLoading(); }
 }
