@@ -315,16 +315,19 @@ body {
   text-align: center; margin-top: 24px;
   font-size: 12px; color: #94a3b8; line-height: 2;
 }
-.login-admin-link {
+/* Password eye toggle */
+.pw-input-wrap { position: relative; display: flex; align-items: center; }
+.pw-input-wrap .form-input { padding-right: 42px; }
+.pw-eye-btn {
+  position: absolute; right: 10px;
   background: none; border: none; cursor: pointer;
-  font-size: 11px; color: #94a3b8; font-family: inherit;
-  padding: 2px 6px; border-radius: 4px;
-  transition: color 0.15s, background 0.15s;
-  text-decoration: underline; text-underline-offset: 2px;
+  font-size: 16px; color: var(--text-muted);
+  padding: 4px; border-radius: 4px; line-height: 1;
+  transition: color 0.15s;
+  user-select: none;
 }
-.login-admin-link:hover { color: var(--primary); background: rgba(99,102,241,0.08); }
-[data-theme="dark"] .login-admin-link { color: var(--text-muted); }
-[data-theme="dark"] .login-admin-link:hover { color: #a5b4fc; }
+.pw-eye-btn:hover { color: var(--primary); }
+.pw-eye-btn.active { color: var(--primary); }
 
 /* Dark mode: login card */
 [data-theme="dark"] .login-card { background: #1e293b; }

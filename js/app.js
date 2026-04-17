@@ -281,11 +281,25 @@ function logout() {
 // keep old name for any references
 function disconnectAPI() { logout(); }
 
+// ── Password eye toggle ────────────────────────────────────────
+function togglePwEye(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+  btn.classList.toggle('active', show);
+}
+
 // ── Change Password ────────────────────────────────────────────
 function openChangePasswordModal() {
-  document.getElementById('cp-current').value = '';
-  document.getElementById('cp-new').value     = '';
-  document.getElementById('cp-confirm').value = '';
+  ['cp-current','cp-new','cp-confirm'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; el.type = 'password'; }
+  });
+  document.querySelectorAll('#modal-change-password .pw-eye-btn').forEach(b => {
+    b.textContent = '👁'; b.classList.remove('active');
+  });
   const errEl = document.getElementById('cp-error');
   if (errEl) errEl.classList.add('hidden');
   openModal('modal-change-password');
