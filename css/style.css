@@ -524,6 +524,7 @@ body {
   font-size: 13px; color: var(--text); outline: none; cursor: pointer;
   max-width: 80px;
 }
+#year-select { max-width: 100px; min-width: 72px; }
 
 .btn-icon {
   width: 36px; height: 36px; border-radius: var(--radius-sm);
@@ -1243,6 +1244,7 @@ body {
   .page-title { font-size: 15px; }
   .month-selector { padding: 5px 8px; gap: 4px; }
   .month-selector select { font-size: 12px; max-width: 60px; }
+  #year-select { max-width: 80px; min-width: 68px; }
   .month-selector svg { width: 13px; height: 13px; }
 
   /* ── Content area ── */
@@ -1377,6 +1379,7 @@ body {
   .page-title { font-size: 14px; }
 
   .month-selector select { max-width: 55px; }
+  #year-select { max-width: 75px; min-width: 65px; }
 
   .card { padding: 12px; }
 
