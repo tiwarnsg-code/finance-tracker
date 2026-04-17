@@ -11,39 +11,57 @@
 </head>
 <body>
 
-<!-- ===== SETUP SCREEN ===== -->
-<div id="setup-screen">
-  <div class="setup-card">
-    <div class="setup-logo">
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="login-screen" class="hidden">
+  <div class="login-card">
+    <div class="login-logo">
       <span class="logo-icon">💰</span>
       <h1>Finance Tracker</h1>
-      <p>บันทึกรายรับ-รายจ่ายส่วนตัว เชื่อมต่อกับ Google Sheets</p>
+      <p>บันทึกรายรับ-รายจ่ายส่วนตัว</p>
+    </div>
+    <div class="login-form">
+      <div class="login-field">
+        <label class="login-label">👤 ชื่อผู้ใช้</label>
+        <input type="text" id="login-username" class="login-input" placeholder="Username"
+               autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()">
+      </div>
+      <div class="login-field">
+        <label class="login-label">🔑 รหัสผ่าน</label>
+        <input type="password" id="login-password" class="login-input" placeholder="Password"
+               autocomplete="current-password" onkeydown="if(event.key==='Enter')loginUser()">
+      </div>
+      <div id="login-error" class="login-error hidden"></div>
+      <button class="btn-login" id="login-btn" onclick="loginUser()">เข้าสู่ระบบ →</button>
+    </div>
+    <div class="login-footer">Finance Tracker · ระบบบันทึกรายรับ-รายจ่าย</div>
+  </div>
+</div>
+
+<!-- ===== ADMIN SETUP SCREEN (ตั้งค่าครั้งแรก) ===== -->
+<div id="admin-setup-screen" class="hidden">
+  <div class="setup-card">
+    <div class="setup-logo">
+      <span class="logo-icon">⚙️</span>
+      <h1>Admin Setup</h1>
+      <p>ตั้งค่าครั้งแรก — กรอก <strong>Auth Script URL</strong> เพื่อเปิดระบบ Login</p>
     </div>
     <div class="setup-steps">
       <div class="setup-step">
         <div class="step-num">1</div>
-        <div class="step-text">ไปที่ <strong>script.google.com</strong> → สร้างโปรเจกต์ใหม่ → วางโค้ดจากไฟล์ <code>Code.gs</code></div>
+        <div class="step-text">ไปที่ <strong>script.google.com</strong> → สร้างโปรเจกต์ใหม่ → วางโค้ดจากไฟล์ <code>Auth.gs</code></div>
       </div>
       <div class="setup-step">
         <div class="step-num">2</div>
-        <div class="step-text">สร้าง Google Spreadsheet ใหม่ → คัดลอก Spreadsheet ID จาก URL → วางในส่วน <strong>Linked spreadsheet</strong> ใน Apps Script</div>
+        <div class="step-text">Deploy → New deployment → Web app → Execute as: <strong>Me</strong> → Who has access: <strong>Anyone</strong></div>
       </div>
       <div class="setup-step">
         <div class="step-num">3</div>
-        <div class="step-text">คลิก <strong>Deploy → New deployment</strong> → เลือก <em>Web app</em> → Execute as: <strong>Me</strong> → Who has access: <strong>Anyone</strong> → Deploy</div>
-      </div>
-      <div class="setup-step">
-        <div class="step-num">4</div>
-        <div class="step-text">คัดลอก <strong>Web app URL</strong> ที่ได้ แล้ววางด้านล่าง</div>
+        <div class="step-text">คัดลอก <strong>Web app URL</strong> ที่ได้ แล้ววางด้านล่าง (ทำครั้งเดียว)</div>
       </div>
     </div>
     <div class="setup-form">
-      <div class="setup-name-row">
-        <label class="setup-name-label">👤 ชื่อของคุณ</label>
-        <input type="text" id="setup-name-input" placeholder="เช่น สมชาย / Somchai" autocomplete="name" maxlength="40">
-      </div>
-      <input type="url" id="api-url-input" placeholder="https://script.google.com/macros/s/...../exec" autocomplete="off">
-      <button class="btn-setup" onclick="connectAPI()">เชื่อมต่อและเริ่มใช้งาน →</button>
+      <input type="url" id="auth-url-input" placeholder="https://script.google.com/macros/s/...../exec (Auth.gs URL)" autocomplete="off">
+      <button class="btn-setup" id="admin-save-btn" onclick="saveAuthUrl()">บันทึกและไปหน้า Login →</button>
     </div>
   </div>
 </div>
@@ -510,13 +528,20 @@
       <div id="view-settings" class="view">
         <div style="max-width:640px">
 
-          <!-- User name section -->
+          <!-- Account section -->
           <div class="settings-section">
-            <h3 class="settings-title">👤 ข้อมูลผู้ใช้</h3>
+            <h3 class="settings-title">👤 บัญชีผู้ใช้</h3>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="label">เข้าสู่ระบบในชื่อ</div>
+                <div class="desc" id="settings-logged-in-user">—</div>
+              </div>
+              <span class="version-badge badge-ok" style="align-self:center">● ออนไลน์</span>
+            </div>
             <div class="settings-item">
               <div class="settings-item-info">
                 <div class="label">ชื่อที่แสดงในแอป</div>
-                <div class="desc">ชื่อนี้จะแสดงที่เมนูด้านซ้าย เพื่อบอกว่า Finance Tracker นี้เป็นของใคร</div>
+                <div class="desc">แก้ไขชื่อที่แสดงที่ Sidebar</div>
               </div>
             </div>
             <div class="form-group">
@@ -526,45 +551,13 @@
           </div>
 
           <div class="settings-section">
-            <h3 class="settings-title">🔗 การเชื่อมต่อ Google Sheets</h3>
-            <div class="settings-item">
-              <div class="settings-item-info">
-                <div class="label">Apps Script URL</div>
-                <div class="desc">URL ของ Google Apps Script ที่ใช้เก็บข้อมูล</div>
-              </div>
-            </div>
-            <div class="form-group">
-              <input type="url" class="form-input" id="settings-api-url" placeholder="https://script.google.com/macros/s/...../exec">
-            </div>
-            <button class="btn btn-primary" onclick="saveSettings()">บันทึกการตั้งค่า</button>
-            &nbsp;
-            <button class="btn btn-outline" onclick="testConnection()">ทดสอบการเชื่อมต่อ</button>
-          </div>
-
-          <div class="settings-section">
-            <h3 class="settings-title">📊 ข้อมูล Google Sheets</h3>
-            <div class="settings-item">
-              <div class="settings-item-info">
-                <div class="label">Sheets ที่ใช้งาน</div>
-                <div class="desc">Transactions, CreditCards, CreditTransactions, FixedCosts, MonthlyFixed</div>
-              </div>
-            </div>
-            <div class="settings-item">
-              <div class="settings-item-info">
-                <div class="label">การอัพเดตข้อมูล</div>
-                <div class="desc">ข้อมูลอัพเดตทุกครั้งที่เปลี่ยนเดือน หรือกดปุ่ม Refresh</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-section">
             <h3 class="settings-title">⚙️ ทั่วไป</h3>
             <div class="settings-item">
               <div class="settings-item-info">
-                <div class="label">ยกเลิกการเชื่อมต่อ</div>
-                <div class="desc">ล้างข้อมูล URL และกลับไปหน้าตั้งค่า</div>
+                <div class="label">ออกจากระบบ</div>
+                <div class="desc">กลับไปหน้า Login (ข้อมูลใน Google Sheets ยังคงอยู่)</div>
               </div>
-              <button class="btn btn-danger btn-sm" onclick="disconnectAPI()">ยกเลิกการเชื่อมต่อ</button>
+              <button class="btn btn-danger btn-sm" onclick="logout()">ออกจากระบบ</button>
             </div>
           </div>
 

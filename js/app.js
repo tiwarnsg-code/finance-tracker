@@ -103,40 +103,196 @@ function _unlockSave(btn) {
   if (btn) { btn.disabled = false; btn.textContent = btn._origText || btn.textContent; }
 }
 
+// ===== AUTH / SESSION =====
+// Admin: หลัง deploy Auth.gs แล้ว วาง URL ที่นี่ได้เลย (ไม่บังคับ — ใส่ก็ข้ามหน้า setup อัตโนมัติ)
+const AUTH_SCRIPT_URL = '';
+
+const _SESSION_KEY = 'ft_session';
+
+function _getSession() {
+  try { return JSON.parse(sessionStorage.getItem(_SESSION_KEY) || 'null'); }
+  catch { return null; }
+}
+function _setSession(data) {
+  sessionStorage.setItem(_SESSION_KEY, JSON.stringify(data));
+}
+function _clearSession() {
+  sessionStorage.removeItem(_SESSION_KEY);
+  localStorage.removeItem('ft_api_url'); // clear stored api url too
+}
+function _getAuthUrl() {
+  return AUTH_SCRIPT_URL || localStorage.getItem('ft_auth_url') || '';
+}
+
 // ===== INIT =====
 function init() {
   initTheme();
-  if (!api.isConfigured()) {
-    showSetupScreen();
+
+  const authUrl = _getAuthUrl();
+  if (!authUrl) {
+    _showScreen('admin-setup-screen');
     return;
   }
-  showApp();
+
+  const session = _getSession();
+  if (session && session.apiUrl) {
+    api.setUrl(session.apiUrl);
+    _bootApp();
+    return;
+  }
+
+  _showScreen('login-screen');
+}
+
+function _showScreen(id) {
+  ['login-screen', 'admin-setup-screen', 'app'].forEach(s => {
+    const el = document.getElementById(s);
+    if (el) el.classList.toggle('hidden', s !== id);
+  });
+}
+
+function _bootApp() {
+  _showScreen('app');
   initMonthSelectors();
   setupNavigation();
   loadData();
-  // Auto-refresh every 60 seconds when tab is visible
   setInterval(() => { if (!document.hidden) loadData(true); }, 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) loadData(true); });
 }
 
-function showSetupScreen() {
-  document.getElementById('setup-screen').classList.remove('hidden');
-  document.getElementById('app').classList.add('hidden');
-}
-
 function showApp() {
-  document.getElementById('setup-screen').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
-  document.getElementById('settings-api-url').value = localStorage.getItem('ft_api_url') || '';
+  _bootApp();
   applyUserName();
 }
 
+// ── Admin: save auth URL once ─────────────────────────────────
+function saveAuthUrl() {
+  const url = (document.getElementById('auth-url-input').value || '').trim();
+  if (!url) { showToast('กรุณากรอก Auth Script URL', 'error'); return; }
+  if (!url.startsWith('https://script.google.com')) {
+    showToast('URL ไม่ถูกต้อง ต้องเป็น script.google.com', 'error'); return;
+  }
+  localStorage.setItem('ft_auth_url', url);
+  _showScreen('login-screen');
+  showToast('บันทึก Auth URL แล้ว', 'success');
+}
+
+// ── Login ─────────────────────────────────────────────────────
+async function loginUser() {
+  const username = (document.getElementById('login-username').value || '').trim();
+  const password = (document.getElementById('login-password').value || '');
+  const errEl    = document.getElementById('login-error');
+  const btn      = document.getElementById('login-btn');
+
+  errEl.classList.add('hidden');
+
+  if (!username || !password) {
+    _showLoginError('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
+    return;
+  }
+
+  const authUrl = _getAuthUrl();
+  if (!authUrl) { _showLoginError('ยังไม่ได้ตั้งค่า Auth URL'); return; }
+
+  if (!_lockSave(btn)) return;
+  btn.textContent = 'กำลังเข้าสู่ระบบ...';
+
+  try {
+    const data = await _authCall(authUrl, { action: 'login', username, password });
+    // data = { username, displayName, apiUrl }
+    _setSession({ username: data.username, displayName: data.displayName, apiUrl: data.apiUrl });
+    localStorage.setItem('ft_user_name', data.displayName || data.username);
+    api.setUrl(data.apiUrl);
+    _bootApp();
+    applyUserName();
+  } catch (e) {
+    _showLoginError(e.message || 'เชื่อมต่อไม่ได้ กรุณาลองใหม่');
+    _unlockSave(btn);
+    btn.textContent = 'เข้าสู่ระบบ →';
+  }
+}
+
+function _showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  // shake animation
+  el.style.animation = 'none';
+  el.offsetHeight; // reflow
+  el.style.animation = 'loginShake 0.4s ease';
+}
+
+function _authCall(authUrl, params) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_authcb_' + Date.now();
+    let script;
+    const timer = setTimeout(() => {
+      _cleanup();
+      reject(new Error('หมดเวลาเชื่อมต่อ กรุณาลองใหม่'));
+    }, 20000);
+
+    function _cleanup() {
+      clearTimeout(timer);
+      delete window[cbName];
+      if (script && script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[cbName] = (result) => {
+      _cleanup();
+      if (result && result.success) resolve(result.data);
+      else reject(new Error(result ? result.error : 'ข้อผิดพลาดที่ไม่ทราบสาเหตุ'));
+    };
+
+    try {
+      const url = new URL(authUrl);
+      url.searchParams.set('callback', cbName);
+      Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
+      script = document.createElement('script');
+      script.src = url.toString();
+      script.onerror = () => { _cleanup(); reject(new Error('เชื่อมต่อ Auth Server ไม่ได้ — ตรวจสอบ URL')); };
+      document.head.appendChild(script);
+    } catch (e) {
+      _cleanup();
+      reject(new Error('Auth URL ไม่ถูกต้อง: ' + e.message));
+    }
+  });
+}
+
+// ── Logout ────────────────────────────────────────────────────
+function logout() {
+  if (!confirm('ต้องการออกจากระบบใช่ไหม?')) return;
+  _clearSession();
+  api.baseUrl = '';
+  // destroy charts
+  Object.values(state.charts).forEach(c => { try { c.destroy(); } catch {} });
+  state.charts = {};
+  _showScreen('login-screen');
+  // clear login fields
+  const uEl = document.getElementById('login-username');
+  const pEl = document.getElementById('login-password');
+  if (uEl) uEl.value = '';
+  if (pEl) pEl.value = '';
+  const eEl = document.getElementById('login-error');
+  if (eEl) eEl.classList.add('hidden');
+  showToast('ออกจากระบบแล้ว', 'info');
+}
+
+// keep old name for any references
+function disconnectAPI() { logout(); }
+
 function applyUserName() {
-  const name = localStorage.getItem('ft_user_name') || '';
+  const session = _getSession();
+  const name = localStorage.getItem('ft_user_name') || (session && session.displayName) || '';
   const el = document.getElementById('sidebar-user-name');
   if (el) el.textContent = name ? '👤 ' + name : 'รายรับ-รายจ่ายส่วนตัว';
   const settingsEl = document.getElementById('settings-user-name');
   if (settingsEl) settingsEl.value = name;
+  // Show logged-in username in settings
+  const loginInfoEl = document.getElementById('settings-logged-in-user');
+  if (loginInfoEl && session) {
+    loginInfoEl.textContent = session.username + (session.displayName && session.displayName !== session.username ? '  (' + session.displayName + ')' : '');
+  }
 }
 
 function saveUserName() {
