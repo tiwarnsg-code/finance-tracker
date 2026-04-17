@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>คู่มือการติดตั้ง — Finance Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Sarabun', sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; }
+.container { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+h1 { font-size: 28px; color: #4f46e5; margin-bottom: 8px; }
+.subtitle { color: #64748b; margin-bottom: 40px; font-size: 16px; }
+.step { background: white; border-radius: 16px; padding: 28px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-left: 5px solid #6366f1; }
+.step-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.step-num { width: 40px; height: 40px; border-radius: 50%; background: #6366f1; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; flex-shrink: 0; }
+.step-title { font-size: 18px; font-weight: 700; }
+.step-body { color: #475569; font-size: 15px; }
+.step-body ol { padding-left: 20px; }
+.step-body li { margin-bottom: 10px; }
+code { background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 13px; font-family: monospace; color: #4f46e5; }
+.code-block { background: #1e1b4b; color: #a5b4fc; padding: 16px 20px; border-radius: 10px; font-family: monospace; font-size: 13px; margin: 12px 0; line-height: 1.8; white-space: pre-wrap; }
+.tip { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 14px 18px; margin: 12px 0; color: #166534; font-size: 14px; }
+.warning { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 14px 18px; margin: 12px 0; color: #92400e; font-size: 14px; }
+.btn-link { display: inline-block; background: #6366f1; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 700; margin-top: 10px; }
+img.screenshot { max-width: 100%; border-radius: 10px; border: 1px solid #e2e8f0; margin: 12px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>💰 Finance Tracker — คู่มือการติดตั้ง</h1>
+  <p class="subtitle">ทำตามขั้นตอนนี้เพื่อเชื่อมต่อแอพกับ Google Sheets ใช้เวลาประมาณ 10 นาที</p>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <div class="step-title">สร้าง Google Spreadsheet ใหม่</div>
+    </div>
+    <div class="step-body">
+      <ol>
+        <li>ไปที่ <a href="https://sheets.google.com" target="_blank"><strong>sheets.google.com</strong></a> แล้วสร้าง Spreadsheet ใหม่</li>
+        <li>ตั้งชื่อว่า <strong>"Finance Tracker"</strong> (หรือชื่ออะไรก็ได้)</li>
+        <li>คัดลอก <strong>Spreadsheet ID</strong> จาก URL<br>
+          URL ตัวอย่าง: <code>https://docs.google.com/spreadsheets/d/<strong>1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms</strong>/edit</code><br>
+          ส่วนที่เป็น ID คือข้อความยาวๆ ตรงกลาง URL</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <div class="step-title">สร้าง Google Apps Script</div>
+    </div>
+    <div class="step-body">
+      <ol>
+        <li>ใน Spreadsheet ที่สร้าง ไปที่เมนู <strong>Extensions → Apps Script</strong></li>
+        <li>จะเปิดหน้าต่าง Apps Script ขึ้นมา</li>
+        <li>ลบโค้ดเดิมทั้งหมดออก แล้ว<strong>คัดลอกโค้ดทั้งหมด</strong>จากไฟล์ <code>Code.gs</code> มาวาง</li>
+        <li>กด <strong>Ctrl+S</strong> (หรือ Cmd+S บน Mac) เพื่อบันทึก</li>
+      </ol>
+      <div class="tip">✅ ไฟล์ <code>Code.gs</code> อยู่ในโฟลเดอร์ <code>finance-tracker</code> บน Desktop ของคุณ</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <div class="step-title">Deploy Web App</div>
+    </div>
+    <div class="step-body">
+      <ol>
+        <li>ใน Apps Script คลิกปุ่ม <strong>"Deploy"</strong> (มุมบนขวา) → เลือก <strong>"New deployment"</strong></li>
+        <li>คลิกไอคอน ⚙️ ข้าง "Select type" → เลือก <strong>"Web app"</strong></li>
+        <li>ตั้งค่าดังนี้:
+          <ul style="margin-top:8px;padding-left:20px">
+            <li><strong>Description:</strong> Finance Tracker v1</li>
+            <li><strong>Execute as:</strong> Me (ชื่อบัญชี Google ของคุณ)</li>
+            <li><strong>Who has access:</strong> Anyone</li>
+          </ul>
+        </li>
+        <li>คลิก <strong>"Deploy"</strong></li>
+        <li>ระบบจะขอ Authorization — คลิก <strong>"Authorize access"</strong> และอนุญาตทั้งหมด</li>
+        <li>คัดลอก <strong>Web app URL</strong> ที่แสดงขึ้นมา</li>
+      </ol>
+      <div class="warning">⚠️ URL จะมีหน้าตาแบบนี้: <code>https://script.google.com/macros/s/AKfycby.../exec</code></div>
+      <div class="tip">✅ เก็บ URL นี้ไว้ให้ดี จะใช้ในขั้นตอนต่อไป</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">4</div>
+      <div class="step-title">เปิดแอพและตั้งค่า</div>
+    </div>
+    <div class="step-body">
+      <ol>
+        <li>เปิดไฟล์ <code>index.html</code> ในโฟลเดอร์ <code>finance-tracker</code></li>
+        <li>วาง <strong>Web app URL</strong> ที่คัดลอกไว้ในช่องที่กำหนด</li>
+        <li>คลิก <strong>"เชื่อมต่อและเริ่มใช้งาน"</strong></li>
+        <li>แอพจะสร้าง Sheets ที่จำเป็นใน Google Spreadsheet ของคุณโดยอัตโนมัติ</li>
+      </ol>
+      <div class="tip">✅ เสร็จแล้ว! ข้อมูลทั้งหมดจะถูกเก็บใน Google Sheets และสามารถเข้าถึงได้จากทุกที่</div>
+    </div>
+  </div>
+
+  <div class="step" style="border-left-color:#10b981">
+    <div class="step-header">
+      <div class="step-num" style="background:#10b981">✓</div>
+      <div class="step-title">การใช้งานข้ามอุปกรณ์</div>
+    </div>
+    <div class="step-body">
+      <p>เนื่องจากข้อมูลถูกเก็บใน Google Sheets คุณสามารถ:</p>
+      <ul style="padding-left:20px;margin-top:10px">
+        <li>เปิดแอพบนคอมพิวเตอร์เครื่องอื่น โดยคัดลอกโฟลเดอร์ <code>finance-tracker</code> ไปด้วย</li>
+        <li>ใช้ Google Drive เพื่อ Sync โฟลเดอร์ข้ามอุปกรณ์</li>
+        <li>อัพโหลดไฟล์ไปยัง GitHub Pages หรือ Netlify เพื่อเข้าถึงผ่าน URL ได้เลย</li>
+      </ul>
+      <div class="tip" style="margin-top:16px">
+        💡 <strong>วิธีง่ายที่สุด:</strong> เปิด Google Drive บนทุกเครื่อง แล้วใส่โฟลเดอร์ <code>finance-tracker</code> ใน Drive — จะ Sync อัตโนมัติ
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:40px">
+    <a href="index.html" class="btn-link">🚀 เปิดแอพเลย</a>
+  </div>
+</div>
+</body>
+</html>

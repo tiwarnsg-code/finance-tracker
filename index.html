@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance Tracker — บันทึกรายรับรายจ่าย</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ===== SETUP SCREEN ===== -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo">
+      <span class="logo-icon">💰</span>
+      <h1>Finance Tracker</h1>
+      <p>บันทึกรายรับ-รายจ่ายส่วนตัว เชื่อมต่อกับ Google Sheets</p>
+    </div>
+    <div class="setup-steps">
+      <div class="setup-step">
+        <div class="step-num">1</div>
+        <div class="step-text">ไปที่ <strong>script.google.com</strong> → สร้างโปรเจกต์ใหม่ → วางโค้ดจากไฟล์ <code>Code.gs</code></div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">2</div>
+        <div class="step-text">สร้าง Google Spreadsheet ใหม่ → คัดลอก Spreadsheet ID จาก URL → วางในส่วน <strong>Linked spreadsheet</strong> ใน Apps Script</div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">3</div>
+        <div class="step-text">คลิก <strong>Deploy → New deployment</strong> → เลือก <em>Web app</em> → Execute as: <strong>Me</strong> → Who has access: <strong>Anyone</strong> → Deploy</div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">4</div>
+        <div class="step-text">คัดลอก <strong>Web app URL</strong> ที่ได้ แล้ววางด้านล่าง</div>
+      </div>
+    </div>
+    <div class="setup-form">
+      <input type="url" id="api-url-input" placeholder="https://script.google.com/macros/s/...../exec" autocomplete="off">
+      <button class="btn-setup" onclick="connectAPI()">เชื่อมต่อและเริ่มใช้งาน →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="app" class="hidden">
+  <!-- Sidebar Overlay (Mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">💰</span>
+      <div>
+        <div class="logo-text">Finance Tracker</div>
+        <div class="logo-sub">รายรับ-รายจ่ายส่วนตัว</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-section-label">เมนูหลัก</div>
+      <button class="nav-item active" data-view="dashboard">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        ภาพรวม (Dashboard)
+      </button>
+      <button class="nav-item" data-view="transactions">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+        รายรับ-รายจ่าย
+      </button>
+      <button class="nav-item" data-view="credit-cards">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+        บัตรเครดิต
+      </button>
+      <button class="nav-item" data-view="fixed-costs">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+        รายจ่ายคงที่
+      </button>
+      <button class="nav-item" data-view="savings">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        เงินออม
+      </button>
+      <div class="sidebar-section-label" style="margin-top:8px">วิเคราะห์</div>
+      <button class="nav-item" data-view="reports">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        รายงาน & กราฟ
+      </button>
+      <div class="sidebar-section-label" style="margin-top:8px">ระบบ</div>
+      <button class="nav-item" data-view="settings">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        ตั้งค่า
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sync-status">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-text">ยังไม่ได้ซิงค์</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <header class="content-header">
+      <div class="header-left">
+        <button class="hamburger" id="hamburger-btn" onclick="toggleSidebar()" aria-label="เมนู">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <h1 class="page-title" id="page-title">ภาพรวม</h1>
+      </div>
+      <div class="header-right">
+        <button class="theme-toggle-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="เปลี่ยน Dark/Light mode">🌙</button>
+        <div class="month-selector">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <select id="month-select" onchange="onMonthChange()"></select>
+          <select id="year-select" onchange="onMonthChange()"></select>
+          <div class="months-range-divider"></div>
+          <select id="months-range-select" class="months-range-select" onchange="onMonthRangeChange()" title="ช่วงเวลาที่ดู">
+            <option value="1">เดือนนี้</option>
+            <option value="3">3 เดือน</option>
+            <option value="6">6 เดือน</option>
+            <option value="12">ทั้งปี</option>
+          </select>
+        </div>
+        <button class="btn-icon" onclick="refreshData()" title="รีเฟรชข้อมูล">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="view-content">
+      <!-- ===== DASHBOARD VIEW ===== -->
+      <div id="view-dashboard" class="view active">
+        <!-- Quick Add Bar -->
+        <div class="dash-quick-add">
+          <span class="dash-quick-label">เพิ่มรายการ</span>
+          <button class="btn dash-quick-income" onclick="openTransactionModal(null,'income')">
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+            รายรับ
+          </button>
+          <button class="btn dash-quick-expense" onclick="openTransactionModal(null,'expense')">
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 12H4"/></svg>
+            รายจ่าย
+          </button>
+          <button class="btn dash-quick-slip" onclick="openSlipModal()">
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            สลิป
+          </button>
+          <button class="btn dash-quick-save" onclick="openSavingsModal('deposit')">
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            ออมเงิน
+          </button>
+        </div>
+        <div class="metrics-grid">
+          <div class="metric-card income">
+            <div class="metric-label">รายรับเดือนนี้</div>
+            <div class="metric-value" id="dash-income">฿0</div>
+            <div class="metric-sub" id="dash-income-sub">กำลังโหลด...</div>
+            <div class="metric-icon">💚</div>
+          </div>
+          <div class="metric-card expense">
+            <div class="metric-label">รายจ่ายเดือนนี้</div>
+            <div class="metric-value" id="dash-expense">฿0</div>
+            <div class="metric-sub" id="dash-expense-sub">กำลังโหลด...</div>
+            <div class="metric-icon">🔴</div>
+          </div>
+          <div class="metric-card balance">
+            <div class="metric-label">ยอดคงเหลือ</div>
+            <div class="metric-value" id="dash-balance">฿0</div>
+            <div class="metric-sub" id="dash-balance-sub">รายรับ - รายจ่าย</div>
+            <div class="metric-icon">💰</div>
+          </div>
+          <div class="metric-card savings">
+            <div class="metric-label">อัตราการออม</div>
+            <div class="metric-value" id="dash-savings">0%</div>
+            <div class="metric-sub" id="dash-savings-sub">ออมจากรายรับ</div>
+            <div class="metric-icon">🏦</div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-bottom:20px">
+          <div class="card">
+            <div class="card-header"><span class="card-title">📈 รายรับ-รายจ่าย 6 เดือน</span></div>
+            <div class="chart-container"><canvas id="trend-chart"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">🍩 รายจ่ายตามหมวดหมู่</span></div>
+            <div class="chart-container"><canvas id="category-chart"></canvas></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🕐 รายการล่าสุด</span>
+              <button class="btn btn-outline btn-sm" onclick="navigate('transactions')">ดูทั้งหมด</button>
+            </div>
+            <div class="tx-list" id="dash-recent-tx">
+              <div class="empty-state"><div class="icon">📋</div><p>ยังไม่มีรายการ</p></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">💳 บัตรเครดิต</span>
+              <button class="btn btn-outline btn-sm" onclick="navigate('credit-cards')">จัดการบัตร</button>
+            </div>
+            <div id="dash-credit-summary">
+              <div class="empty-state"><div class="icon">💳</div><p>ยังไม่มีบัตรเครดิต</p></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:20px">
+          <div class="card-header">
+            <span class="card-title">📌 รายจ่ายคงที่เดือนนี้</span>
+            <button class="btn btn-outline btn-sm" onclick="navigate('fixed-costs')">จัดการ</button>
+          </div>
+          <div id="dash-fixed-summary">
+            <div class="empty-state"><div class="icon">📌</div><p>ยังไม่มีรายจ่ายคงที่</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== TRANSACTIONS VIEW ===== -->
+      <div id="view-transactions" class="view">
+        <div class="section-header">
+          <h2 class="section-title">รายรับ-รายจ่าย</h2>
+          <div class="btn-group">
+            <button class="btn btn-outline" onclick="openSlipModal()">
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <span class="btn-text-hide">อัพโหลด</span>สลิป
+            </button>
+            <button class="btn btn-primary" onclick="openTransactionModal()">
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              เพิ่มรายการ
+            </button>
+          </div>
+        </div>
+
+        <div id="tx-range-label" class="tx-range-label"></div>
+        <div class="filter-bar">
+          <select class="filter-select" id="tx-filter-type" onchange="renderTransactions()">
+            <option value="all">ทั้งหมด</option>
+            <option value="income">รายรับ</option>
+            <option value="expense">รายจ่าย</option>
+          </select>
+          <select class="filter-select" id="tx-filter-cat" onchange="renderTransactions()">
+            <option value="">ทุกหมวดหมู่</option>
+          </select>
+          <input type="text" class="filter-input" id="tx-search" placeholder="🔍 ค้นหารายการ..." oninput="renderTransactions()">
+          <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+            <span style="font-size:13px;color:var(--text-muted)">รวม: </span>
+            <span style="font-weight:700;color:var(--success)" id="tx-total-income">฿0</span>
+            <span style="font-weight:700;color:var(--danger)" id="tx-total-expense">฿0</span>
+          </div>
+        </div>
+
+        <div class="card" style="padding:0;overflow:hidden">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="sortable-th" onclick="setTxSort('date')" id="th-date">วันที่ <span class="sort-icon" id="si-date">↕</span></th>
+                  <th class="sortable-th" onclick="setTxSort('type')" id="th-type">ประเภท <span class="sort-icon" id="si-type">↕</span></th>
+                  <th class="sortable-th" onclick="setTxSort('category')" id="th-category">หมวดหมู่ <span class="sort-icon" id="si-category">↕</span></th>
+                  <th class="sortable-th" onclick="setTxSort('description')" id="th-description">รายการ <span class="sort-icon" id="si-description">↕</span></th>
+                  <th class="text-right sortable-th" onclick="setTxSort('amount')" id="th-amount">จำนวนเงิน <span class="sort-icon" id="si-amount">↕</span></th>
+                  <th>หมายเหตุ</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tx-table-body">
+                <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== CREDIT CARDS VIEW ===== -->
+      <div id="view-credit-cards" class="view">
+        <div class="section-header">
+          <h2 class="section-title">บัตรเครดิต</h2>
+        </div>
+
+        <div class="credit-cards-grid" id="credit-cards-grid">
+          <button class="cc-add-card" onclick="openCreditCardModal()">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            เพิ่มบัตรเครดิต
+          </button>
+        </div>
+
+        <div id="credit-card-detail" class="hidden">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" id="cc-detail-title">รายการใช้จ่ายบัตร</span>
+              <button class="btn btn-primary btn-sm" onclick="openCreditTxModal()">+ เพิ่มรายการ</button>
+            </div>
+            <!-- Installment Plans Section (hidden when empty) -->
+            <div id="cc-installment-plans" style="display:none;padding:0 4px 4px"></div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th class="sortable-th" onclick="setCCTxSort('date')" id="ccth-date">วันที่ <span class="sort-icon" id="ccsi-date">↕</span></th>
+                    <th class="sortable-th" onclick="setCCTxSort('description')" id="ccth-description">รายการ <span class="sort-icon" id="ccsi-description">↕</span></th>
+                    <th class="sortable-th" onclick="setCCTxSort('category')" id="ccth-category">หมวดหมู่ <span class="sort-icon" id="ccsi-category">↕</span></th>
+                    <th class="text-right sortable-th" onclick="setCCTxSort('amount')" id="ccth-amount">จำนวนเงิน <span class="sort-icon" id="ccsi-amount">↕</span></th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="cc-tx-table-body">
+                  <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">เลือกบัตรเพื่อดูรายการ</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== FIXED COSTS VIEW ===== -->
+      <div id="view-fixed-costs" class="view">
+        <div class="section-header">
+          <h2 class="section-title">รายจ่ายคงที่</h2>
+          <button class="btn btn-primary" onclick="openFixedCostModal()">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            เพิ่มรายจ่ายคงที่
+          </button>
+        </div>
+
+        <div class="fixed-summary-bar" id="fixed-summary-bar">
+          <div class="fixed-summary-stat">
+            <div class="val text-danger" id="fc-total">฿0</div>
+            <div class="lbl">รวมทั้งหมด</div>
+          </div>
+          <div class="fixed-progress-bar" style="flex:1">
+            <div class="fixed-progress-fill" id="fc-progress-fill" style="width:0%"></div>
+          </div>
+          <div class="fixed-summary-stat">
+            <div class="val text-success" id="fc-paid">฿0</div>
+            <div class="lbl">จ่ายแล้ว</div>
+          </div>
+          <div class="fixed-summary-stat">
+            <div class="val text-warning" id="fc-remaining">฿0</div>
+            <div class="lbl">ยังขาดอยู่</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">รายการค่าใช้จ่ายประจำ</span>
+            <span id="fc-month-label" style="font-size:13px;color:var(--text-muted)"></span>
+          </div>
+          <div id="fixed-costs-list">
+            <div class="empty-state"><div class="icon">📌</div><h3>ยังไม่มีรายจ่ายคงที่</h3><p>เพิ่มรายจ่ายที่ต้องชำระทุกเดือน เช่น ค่าเช่า ค่าไฟ</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SAVINGS VIEW ===== -->
+      <div id="view-savings" class="view">
+        <div class="section-header">
+          <h2 class="section-title">🏦 เงินออม</h2>
+          <div class="btn-group">
+            <button class="btn btn-outline" onclick="openSavingsModal('withdraw')">
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+              นำออก
+            </button>
+            <button class="btn btn-primary" onclick="openSavingsModal('deposit')">
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              ออมเงิน
+            </button>
+          </div>
+        </div>
+
+        <!-- Balance Card -->
+        <div class="savings-balance-card" id="savings-balance-card">
+          <div class="savings-balance-label">💰 ยอดเงินออมทั้งหมด</div>
+          <div class="savings-balance-amount" id="savings-balance-amount">฿0</div>
+          <div class="savings-balance-sub">
+            <span>💚 ออมรวม: <strong id="savings-total-deposited">฿0</strong></span>
+            <span>🔴 นำออกรวม: <strong id="savings-total-withdrawn">฿0</strong></span>
+          </div>
+          <div class="savings-btn-row">
+            <button class="btn btn-success" onclick="openSavingsModal('deposit')">💰 ออมเงิน</button>
+            <button class="btn btn-outline" onclick="openSavingsModal('withdraw')">↩️ นำออกสู่บัญชีหลัก</button>
+          </div>
+        </div>
+
+        <!-- History -->
+        <div class="card" style="padding:0;overflow:hidden;margin-top:16px">
+          <div class="card-header" style="padding:14px 16px">
+            <span class="card-title">📋 ประวัติการออมเงิน</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="sortable-th" onclick="setSavingsSort('date')" id="sth-date">วันที่ <span class="sort-icon" id="ssi-date">↕</span></th>
+                  <th class="sortable-th" onclick="setSavingsSort('type')" id="sth-type">ประเภท <span class="sort-icon" id="ssi-type">↕</span></th>
+                  <th class="sortable-th" onclick="setSavingsSort('description')" id="sth-description">รายละเอียด <span class="sort-icon" id="ssi-description">↕</span></th>
+                  <th class="text-right sortable-th" onclick="setSavingsSort('amount')" id="sth-amount">จำนวนเงิน <span class="sort-icon" id="ssi-amount">↕</span></th>
+                  <th class="text-right">ยอดคงเหลือ</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="savings-table-body">
+                <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== REPORTS VIEW ===== -->
+      <div id="view-reports" class="view">
+        <div class="section-header">
+          <h2 class="section-title">รายงาน & การวิเคราะห์</h2>
+        </div>
+
+        <!-- Summary KPIs -->
+        <div class="metrics-grid" style="margin-bottom:20px">
+          <div class="metric-card income">
+            <div class="metric-label">รายรับเดือนนี้</div>
+            <div class="metric-value" id="rpt-income">฿0</div>
+            <div class="metric-icon">💚</div>
+          </div>
+          <div class="metric-card expense">
+            <div class="metric-label">รายจ่ายเดือนนี้</div>
+            <div class="metric-value" id="rpt-expense">฿0</div>
+            <div class="metric-icon">🔴</div>
+          </div>
+          <div class="metric-card balance">
+            <div class="metric-label">ออมได้</div>
+            <div class="metric-value" id="rpt-balance">฿0</div>
+            <div class="metric-icon">💰</div>
+          </div>
+          <div class="metric-card savings">
+            <div class="metric-label">อัตราออม</div>
+            <div class="metric-value" id="rpt-savings">0%</div>
+            <div class="metric-icon">🏦</div>
+          </div>
+        </div>
+
+        <!-- Trend Chart -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header">
+            <span class="card-title">📊 เทรนด์รายรับ-รายจ่าย 6 เดือนล่าสุด</span>
+          </div>
+          <div class="chart-container tall"><canvas id="rpt-trend-chart"></canvas></div>
+        </div>
+
+        <div class="reports-grid" style="margin-bottom:20px">
+          <!-- Expense Category Breakdown -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🍩 รายจ่ายตามหมวดหมู่</span>
+            </div>
+            <div class="chart-container" style="height:180px;margin-bottom:12px"><canvas id="rpt-expense-cat-chart"></canvas></div>
+            <div class="category-breakdown" id="rpt-expense-breakdown"></div>
+          </div>
+
+          <!-- Income Category Breakdown -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">💚 รายรับตามแหล่งที่มา</span>
+            </div>
+            <div class="chart-container" style="height:180px;margin-bottom:12px"><canvas id="rpt-income-cat-chart"></canvas></div>
+            <div class="category-breakdown" id="rpt-income-breakdown"></div>
+          </div>
+        </div>
+
+        <div class="reports-grid" style="margin-bottom:20px">
+          <!-- Credit Card Usage -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">💳 การใช้วงเงินบัตรเครดิต</span></div>
+            <div id="rpt-credit-cards">
+              <div class="empty-state"><div class="icon">💳</div><p>ไม่มีบัตรเครดิต</p></div>
+            </div>
+          </div>
+
+          <!-- Fixed Cost Status -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">📌 สถานะรายจ่ายคงที่</span></div>
+            <div style="margin-bottom:12px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+                <span style="font-size:13px;color:var(--text-muted)">จ่ายแล้ว <span id="rpt-fc-paid-count" style="color:var(--success);font-weight:700">0</span> รายการ</span>
+                <span style="font-size:13px;color:var(--text-muted)">เหลือ <span id="rpt-fc-remaining-count" style="color:var(--danger);font-weight:700">0</span> รายการ</span>
+              </div>
+              <div class="fixed-progress-bar">
+                <div class="fixed-progress-fill" id="rpt-fc-progress" style="width:0%"></div>
+              </div>
+            </div>
+            <div id="rpt-fixed-costs-list"></div>
+          </div>
+        </div>
+
+        <!-- Monthly Comparison Bar Chart -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">📅 เปรียบเทียบรายเดือน</span></div>
+          <div class="chart-container tall"><canvas id="rpt-monthly-bar"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ===== SETTINGS VIEW ===== -->
+      <div id="view-settings" class="view">
+        <div style="max-width:640px">
+          <div class="settings-section">
+            <h3 class="settings-title">🔗 การเชื่อมต่อ Google Sheets</h3>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="label">Apps Script URL</div>
+                <div class="desc">URL ของ Google Apps Script ที่ใช้เก็บข้อมูล</div>
+              </div>
+            </div>
+            <div class="form-group">
+              <input type="url" class="form-input" id="settings-api-url" placeholder="https://script.google.com/macros/s/...../exec">
+            </div>
+            <button class="btn btn-primary" onclick="saveSettings()">บันทึกการตั้งค่า</button>
+            &nbsp;
+            <button class="btn btn-outline" onclick="testConnection()">ทดสอบการเชื่อมต่อ</button>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="settings-title">📊 ข้อมูล Google Sheets</h3>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="label">Sheets ที่ใช้งาน</div>
+                <div class="desc">Transactions, CreditCards, CreditTransactions, FixedCosts, MonthlyFixed</div>
+              </div>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="label">การอัพเดตข้อมูล</div>
+                <div class="desc">ข้อมูลอัพเดตทุกครั้งที่เปลี่ยนเดือน หรือกดปุ่ม Refresh</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="settings-title">⚙️ ทั่วไป</h3>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="label">ยกเลิกการเชื่อมต่อ</div>
+                <div class="desc">ล้างข้อมูล URL และกลับไปหน้าตั้งค่า</div>
+              </div>
+              <button class="btn btn-danger btn-sm" onclick="disconnectAPI()">ยกเลิกการเชื่อมต่อ</button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="settings-title">🎨 ธีมและสีหลัก</h3>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="label">โหมดสีพื้นหลัง</div>
+                <div class="desc">เลือกระหว่างโหมดสว่าง (Light) หรือมืด (Dark)</div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <button class="btn btn-outline btn-sm" id="theme-light-btn" onclick="setThemeMode('light')">☀️ สว่าง</button>
+                <button class="btn btn-outline btn-sm" id="theme-dark-btn" onclick="setThemeMode('dark')">🌙 มืด</button>
+              </div>
+            </div>
+            <div class="settings-item" style="flex-direction:column;align-items:flex-start;gap:10px">
+              <div class="settings-item-info">
+                <div class="label">สีธีมหลัก</div>
+                <div class="desc">เลือกสีที่ต้องการใช้ทั่วทั้งแอป</div>
+              </div>
+              <div class="color-picker-row" id="color-picker-row">
+                <div class="color-swatch active" data-color="indigo"  style="background:#6366f1" onclick="setThemeColor('indigo')"  title="Indigo (ค่าเริ่มต้น)">✓</div>
+                <div class="color-swatch" data-color="blue"   style="background:#3b82f6" onclick="setThemeColor('blue')"   title="Blue"></div>
+                <div class="color-swatch" data-color="green"  style="background:#10b981" onclick="setThemeColor('green')"  title="Green"></div>
+                <div class="color-swatch" data-color="rose"   style="background:#f43f5e" onclick="setThemeColor('rose')"   title="Rose"></div>
+                <div class="color-swatch" data-color="amber"  style="background:#f59e0b" onclick="setThemeColor('amber')"  title="Amber"></div>
+                <div class="color-swatch" data-color="purple" style="background:#8b5cf6" onclick="setThemeColor('purple')" title="Purple"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ===== MODAL: TRANSACTION ===== -->
+<div class="modal-overlay" id="modal-transaction">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-tx-title">เพิ่มรายการ</h2>
+      <button class="modal-close" onclick="closeModal('modal-transaction')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="tx-id">
+      <div class="form-group">
+        <label class="form-label">ประเภท</label>
+        <div class="type-toggle">
+          <button type="button" class="type-toggle-btn active income" onclick="setTxType('income')">💚 รายรับ</button>
+          <button type="button" class="type-toggle-btn expense" onclick="setTxType('expense')">🔴 รายจ่าย</button>
+        </div>
+        <input type="hidden" id="tx-type" value="income">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">วันที่</label>
+          <input type="date" class="form-input" id="tx-date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">จำนวนเงิน (บาท)</label>
+          <input type="number" class="form-input" id="tx-amount" placeholder="0.00" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">หมวดหมู่</label>
+        <div class="category-grid" id="tx-category-grid"></div>
+        <input type="hidden" id="tx-category">
+      </div>
+      <div class="form-group">
+        <label class="form-label">รายละเอียด</label>
+        <input type="text" class="form-input" id="tx-description" placeholder="ระบุรายละเอียด...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ (ไม่บังคับ)</label>
+        <textarea class="form-textarea" id="tx-notes" placeholder="หมายเหตุเพิ่มเติม..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">เลขที่รายการ / Ref No. <span style="font-weight:400;color:var(--text-muted)">(ไม่บังคับ)</span></label>
+        <input type="text" class="form-input" id="tx-slip-ref" placeholder="เช่น 202404140001234567">
+      </div>
+      <!-- Fixed Cost Link (expense only) -->
+      <div id="tx-fixed-link-group" class="hidden">
+        <label class="form-label">📌 นี่คือการชำระรายจ่ายคงที่ <span style="font-weight:400;color:var(--text-muted)">(ไม่บังคับ — เลือกเพื่อมาร์กว่าจ่ายแล้วอัตโนมัติ)</span></label>
+        <div class="fc-link-list" id="tx-fc-link-list"></div>
+        <input type="hidden" id="tx-linked-fc-id">
+      </div>
+      <!-- Payment Method (expense only) -->
+      <div id="tx-payment-method-group" class="hidden">
+        <div class="form-group">
+          <label class="form-label">ช่องทางการชำระเงิน</label>
+          <div class="pay-method-toggle">
+            <button type="button" class="pay-method-btn active" data-method="cash" onclick="setPayMethod('cash')">💵 เงินสด / โอน</button>
+            <button type="button" class="pay-method-btn" data-method="credit" onclick="setPayMethod('credit')">💳 บัตรเครดิต</button>
+          </div>
+        </div>
+        <div id="tx-card-select-group" class="form-group hidden">
+          <label class="form-label">เลือกบัตรเครดิต</label>
+          <select class="form-select" id="tx-paid-by-card">
+            <option value="">— เลือกบัตรเครดิต —</option>
+          </select>
+        </div>
+      </div>
+      <input type="hidden" id="tx-pay-method" value="cash">
+      <input type="hidden" id="tx-paid-by-card-id">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-transaction')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveTransaction()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: SLIP UPLOAD ===== -->
+<div class="modal-overlay" id="modal-slip">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 class="modal-title">📸 อัพโหลดสลิป</h2>
+      <button class="modal-close" onclick="closeModal('modal-slip')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="slip-grid">
+        <div>
+          <div class="form-group">
+            <label class="form-label">รูปสลิป</label>
+            <div class="slip-upload-area" id="slip-upload-area">
+              <input type="file" id="slip-file-input" accept="image/*" onchange="previewSlip(event)">
+              <img id="slip-preview" class="slip-preview hidden">
+              <div id="slip-placeholder">
+                <div style="font-size:36px;margin-bottom:8px">📸</div>
+                <div style="font-size:14px;color:var(--text-muted)">คลิกหรือลากไฟล์มาวาง</div>
+                <div style="font-size:12px;color:var(--text-light);margin-top:4px">JPG, PNG ขนาดไม่เกิน 10MB</div>
+              </div>
+            </div>
+          </div>
+          <!-- OCR Section -->
+          <div class="ocr-section" id="slip-ocr-section" style="display:none">
+            <button class="btn btn-outline btn-sm" id="slip-scan-btn" onclick="scanSlip()" style="width:100%;margin-bottom:8px">
+              🔍 สแกนและอ่านข้อมูลอัตโนมัติ
+            </button>
+            <div class="ocr-progress-bar" id="slip-ocr-bar" style="display:none">
+              <div class="ocr-progress-fill" id="slip-ocr-fill"></div>
+            </div>
+            <div class="ocr-status" id="slip-ocr-status"></div>
+          </div>
+        </div>
+        <div>
+          <div class="form-group">
+            <label class="form-label">ประเภท</label>
+            <div class="type-toggle">
+              <button type="button" class="type-toggle-btn active income" onclick="setSlipType('income')">💚 รายรับ</button>
+              <button type="button" class="type-toggle-btn expense" onclick="setSlipType('expense')">🔴 รายจ่าย</button>
+            </div>
+            <input type="hidden" id="slip-type" value="income">
+          </div>
+          <div class="form-group">
+            <label class="form-label">วันที่</label>
+            <input type="date" class="form-input" id="slip-date">
+          </div>
+          <div class="form-group">
+            <label class="form-label">จำนวนเงิน (บาท)</label>
+            <input type="number" class="form-input" id="slip-amount" placeholder="0.00" min="0" step="0.01">
+          </div>
+          <div class="form-group">
+            <label class="form-label">หมวดหมู่</label>
+            <select class="form-select" id="slip-category"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">รายละเอียด</label>
+            <input type="text" class="form-input" id="slip-description" placeholder="ระบุรายละเอียด...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">เลขที่รายการ / Ref No.</label>
+            <input type="text" class="form-input" id="slip-ref" placeholder="อ่านจากสลิปอัตโนมัติ หรือกรอกเอง">
+          </div>
+          <!-- Fixed Cost Link (shown only for expense) -->
+          <div class="form-group" id="slip-fixed-link-group" style="display:none">
+            <label class="form-label" style="display:flex;align-items:center;gap:6px">
+              📌 นี่คือการจ่ายรายจ่ายคงที่ใด?
+              <span style="font-size:11px;color:var(--text-muted);font-weight:400">(ไม่บังคับ — ติ๊กเพื่อทำเครื่องหมายว่าจ่ายแล้ว)</span>
+            </label>
+            <div class="fc-link-list" id="slip-fc-link-list"></div>
+            <input type="hidden" id="slip-linked-fc-id" value="">
+          </div>
+          <!-- Payment Method -->
+          <div class="form-group" id="slip-payment-method-group">
+            <label class="form-label">ช่องทางการชำระเงิน</label>
+            <div class="pay-method-toggle">
+              <button type="button" class="pay-method-btn active" data-method="cash" onclick="setSlipPayMethod('cash')">💵 เงินสด / โอน</button>
+              <button type="button" class="pay-method-btn" data-method="credit" onclick="setSlipPayMethod('credit')">💳 บัตรเครดิต</button>
+            </div>
+          </div>
+          <div id="slip-card-select-group" class="form-group hidden">
+            <label class="form-label">เลือกบัตรเครดิต</label>
+            <select class="form-select" id="slip-paid-by-card">
+              <option value="">— เลือกบัตรเครดิต —</option>
+            </select>
+          </div>
+          <input type="hidden" id="slip-pay-method" value="cash">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-slip')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveSlipTransaction()">บันทึกรายการ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: CREDIT CARD ===== -->
+<div class="modal-overlay" id="modal-credit-card">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-cc-title">เพิ่มบัตรเครดิต</h2>
+      <button class="modal-close" onclick="closeModal('modal-credit-card')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cc-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ชื่อบัตร / ธนาคาร</label>
+          <input type="text" class="form-input" id="cc-name" placeholder="เช่น KBank Platinum">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ชื่อธนาคาร</label>
+          <select class="form-select" id="cc-bank">
+            <option value="KBank">กสิกรไทย (KBank)</option>
+            <option value="SCB">ไทยพาณิชย์ (SCB)</option>
+            <option value="BBL">กรุงเทพ (BBL)</option>
+            <option value="KTB">กรุงไทย (KTB)</option>
+            <option value="BAY">กรุงศรี (BAY)</option>
+            <option value="CIMBT">CIMB Thai</option>
+            <option value="UOB">UOB</option>
+            <option value="Citibank">Citibank</option>
+            <option value="Other">อื่นๆ</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">เลขบัตร 4 ตัวท้าย</label>
+          <input type="text" class="form-input" id="cc-last4" placeholder="XXXX" maxlength="4">
+        </div>
+        <div class="form-group">
+          <label class="form-label">วงเงิน (บาท)</label>
+          <input type="number" class="form-input" id="cc-limit" placeholder="0" min="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">วันที่ตัดรอบ (Statement Day)</label>
+          <input type="number" class="form-input" id="cc-statement-day" placeholder="1-31" min="1" max="31">
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันที่ครบกำหนด (Due Day)</label>
+          <input type="number" class="form-input" id="cc-due-day" placeholder="1-31" min="1" max="31">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">สีบัตร</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn btn-sm cc-color-btn" style="background:#1a9e3f;color:white;border:2px solid transparent" data-color="#1a9e3f" onclick="selectCardColor(this)">กสิกร</button>
+          <button type="button" class="btn btn-sm cc-color-btn" style="background:#4e2d8b;color:white;border:2px solid transparent" data-color="#4e2d8b" onclick="selectCardColor(this)">SCB</button>
+          <button type="button" class="btn btn-sm cc-color-btn" style="background:#003087;color:white;border:2px solid transparent" data-color="#003087" onclick="selectCardColor(this)">BBL</button>
+          <button type="button" class="btn btn-sm cc-color-btn" style="background:#006EB7;color:white;border:2px solid transparent" data-color="#006EB7" onclick="selectCardColor(this)">กรุงไทย</button>
+          <button type="button" class="btn btn-sm cc-color-btn" style="background:#e30613;color:white;border:2px solid transparent" data-color="#e30613" onclick="selectCardColor(this)">กรุงศรี</button>
+          <button type="button" class="btn btn-sm cc-color-btn" style="background:#6366f1;color:white;border:2px solid transparent" data-color="#6366f1" onclick="selectCardColor(this)">อื่นๆ</button>
+          <input type="color" id="cc-color-custom" style="width:36px;height:36px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px" onchange="selectCardColorCustom(this.value)">
+        </div>
+        <input type="hidden" id="cc-color" value="#6366f1">
+      </div>
+
+      <!-- ===== SHARED CREDIT LIMIT ===== -->
+      <div class="shared-limit-section">
+        <div class="shared-limit-header" onclick="toggleSharedLimitUI()">
+          <div class="shared-limit-header-left">
+            <span class="shared-limit-icon">🔗</span>
+            <div>
+              <div class="shared-limit-title">เชื่อมวงเงินร่วมกับบัตรอื่น</div>
+              <div class="shared-limit-desc">ยอดใช้จ่ายจาก 2 บัตรจะถูกรวมและคำนวณต่อวงเงินเดียวกัน</div>
+            </div>
+          </div>
+          <label class="toggle-switch" onclick="event.stopPropagation()">
+            <input type="checkbox" id="cc-use-shared" onchange="toggleSharedLimitUI()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div id="shared-limit-body" class="shared-limit-body hidden">
+          <div class="form-group" style="margin-bottom:8px">
+            <label class="form-label">เชื่อมกับบัตร</label>
+            <select class="form-select" id="cc-linked-card">
+              <option value="">-- เลือกบัตรที่ต้องการแชร์วงเงิน --</option>
+            </select>
+          </div>
+          <div class="shared-hint">
+            <span>💡</span>
+            <span>วงเงินที่ใช้คำนวณคือวงเงินของ <strong>บัตรที่ถูกเลือก</strong> — ยอดใช้จ่ายของทั้ง 2 บัตรจะถูกรวมกัน</span>
+          </div>
+        </div>
+      </div>
+      <input type="hidden" id="cc-linked-card-id">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-credit-card')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveCreditCard()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: CREDIT TRANSACTION ===== -->
+<div class="modal-overlay" id="modal-credit-tx">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-cctx-title">เพิ่มรายการบัตรเครดิต</h2>
+      <button class="modal-close" onclick="closeModal('modal-credit-tx')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cctx-id">
+      <input type="hidden" id="cctx-card-id">
+      <!-- Transaction kind: charge or payment -->
+      <div class="form-group">
+        <label class="form-label">ประเภทรายการ</label>
+        <div class="pay-method-toggle">
+          <button type="button" class="pay-method-btn active" data-method="charge" onclick="setCctxKind('charge')">💳 รายจ่าย/ใช้บัตร</button>
+          <button type="button" class="pay-method-btn" data-method="payment" onclick="setCctxKind('payment')" style="--active-bg:#10b981;--active-border:#10b981">💰 ชำระบัตร</button>
+        </div>
+        <input type="hidden" id="cctx-kind" value="charge">
+        <div id="cctx-payment-hint" class="hidden" style="font-size:12px;color:var(--success);margin-top:6px;padding:6px 10px;background:var(--success-light);border-radius:6px">
+          ✓ รายการนี้จะ <strong>ลดยอดค้างชำระ</strong> — ใส่จำนวนเงินที่จ่ายให้บัตรเครดิต
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">วันที่</label>
+          <input type="date" class="form-input" id="cctx-date">
+        </div>
+        <div class="form-group">
+          <label class="form-label" id="cctx-amount-label">ยอดเงินทั้งหมด (บาท)</label>
+          <input type="number" class="form-input" id="cctx-amount" placeholder="0.00" min="0" step="0.01" oninput="updateInstallmentCalc()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">รายละเอียด</label>
+        <input type="text" class="form-input" id="cctx-description" placeholder="ระบุรายละเอียด...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">หมวดหมู่</label>
+        <select class="form-select" id="cctx-category"></select>
+      </div>
+      <!-- Installment toggle (charge only) -->
+      <div class="form-group" id="cctx-pay-type-group">
+        <label class="form-label">ประเภทการชำระ</label>
+        <div class="pay-method-toggle">
+          <button type="button" class="pay-method-btn active" data-method="full" onclick="setCctxPayType('full')">💳 เต็มจำนวน</button>
+          <button type="button" class="pay-method-btn" data-method="installment" onclick="setCctxPayType('installment')">📅 ผ่อนชำระ</button>
+        </div>
+        <input type="hidden" id="cctx-pay-type" value="full">
+      </div>
+      <div id="cctx-installment-group" class="hidden">
+        <div class="installment-info-box">
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">จำนวนงวด (เดือน)</label>
+              <input type="number" class="form-input" id="cctx-installment-months"
+                     placeholder="เช่น 10" min="2" max="60" oninput="updateInstallmentCalc()">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">ยอดผ่อน/เดือน (บาท)</label>
+              <input type="number" class="form-input" id="cctx-installment-monthly"
+                     placeholder="คำนวณอัตโนมัติ" min="0" step="0.01" oninput="updateInstallmentCalc()">
+            </div>
+          </div>
+          <div class="installment-calc-preview" id="cctx-installment-preview">
+            กรอกจำนวนงวดเพื่อคำนวณยอดผ่อนอัตโนมัติ
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-credit-tx')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveCreditTransaction()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: FIXED COST ===== -->
+<div class="modal-overlay" id="modal-fixed-cost">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-fc-title">เพิ่มรายจ่ายคงที่</h2>
+      <button class="modal-close" onclick="closeModal('modal-fixed-cost')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="fc-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ชื่อรายจ่าย</label>
+          <input type="text" class="form-input" id="fc-name" placeholder="เช่น ค่าเช่าบ้าน">
+        </div>
+        <div class="form-group">
+          <label class="form-label">จำนวนเงิน/เดือน (บาท)</label>
+          <input type="number" class="form-input" id="fc-amount" placeholder="0.00" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ไอคอน / หมวดหมู่</label>
+        <div class="emoji-picker-wrapper">
+          <div class="emoji-picker-top">
+            <div class="emoji-preview-box" id="fc-emoji-preview">📌</div>
+            <div style="flex:1;min-width:0">
+              <div class="fc-preset-pills" id="fc-preset-pills"></div>
+              <div class="emoji-custom-row">
+                <input type="text" class="form-input emoji-custom-input" id="fc-emoji-custom"
+                       placeholder="วางอีโมจิจากภายนอก… 🎯"
+                       oninput="onFcEmojiCustomInput(this.value)" maxlength="10">
+                <button type="button" class="btn btn-outline btn-sm" onclick="applyFcCustomEmoji()">ใช้</button>
+              </div>
+            </div>
+          </div>
+          <div class="emoji-tab-bar" id="fc-emoji-tabs"></div>
+          <div class="emoji-grid-scroll">
+            <div class="emoji-grid" id="fc-emoji-grid"></div>
+          </div>
+        </div>
+        <input type="hidden" id="fc-category">
+      </div>
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ (ไม่บังคับ)</label>
+        <textarea class="form-textarea" id="fc-notes" placeholder="รายละเอียดเพิ่มเติม..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-fixed-cost')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveFixedCost()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CONFIRM DIALOG ===== -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal" style="width:400px">
+    <div class="modal-header">
+      <h2 class="modal-title">⚠️ ยืนยันการลบ</h2>
+      <button class="modal-close" onclick="closeModal('modal-confirm')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="confirm-message" style="font-size:15px;color:var(--text)">คุณต้องการลบรายการนี้ใช่ไหม?</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-confirm')">ยกเลิก</button>
+      <button class="btn btn-danger" id="confirm-btn">ลบ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== BOTTOM NAV (Mobile) ===== -->
+<nav class="bottom-nav" id="bottom-nav">
+  <div class="bottom-nav-inner">
+    <button class="bottom-nav-item active" data-view="dashboard">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      <span>ภาพรวม</span>
+    </button>
+    <button class="bottom-nav-item" data-view="transactions">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      <span>รายการ</span>
+    </button>
+    <button class="bottom-nav-item" data-view="credit-cards">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+      <span>บัตรเครดิต</span>
+    </button>
+    <button class="bottom-nav-item" data-view="fixed-costs">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+      <span>คงที่</span>
+    </button>
+    <button class="bottom-nav-item" data-view="savings">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+      <span>ออม</span>
+    </button>
+    <button class="bottom-nav-item" data-view="reports">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      <span>รายงาน</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ===== LOADING ===== -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+</div>
+
+<!-- ===== TOAST CONTAINER ===== -->
+<div id="toast-container"></div>
+
+<!-- ===== SAVINGS MODAL ===== -->
+<div id="modal-savings" class="modal-overlay" onclick="if(event.target===this)closeModal('modal-savings')">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h3 class="modal-title" id="savings-modal-title">ออมเงิน</h3>
+      <button class="modal-close" onclick="closeModal('modal-savings')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="savings-id">
+      <input type="hidden" id="savings-type" value="deposit">
+      <div class="form-group">
+        <label class="form-label">วันที่</label>
+        <input type="date" class="form-input" id="savings-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">จำนวนเงิน (฿)</label>
+        <input type="number" class="form-input" id="savings-amount" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">รายละเอียด (ไม่บังคับ)</label>
+        <input type="text" class="form-input" id="savings-description" placeholder="เช่น ออมเดือน เมษายน...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-savings')">ยกเลิก</button>
+      <button class="btn btn-primary" id="savings-save-btn" onclick="saveSavingsRecord()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
