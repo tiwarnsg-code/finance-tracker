@@ -603,8 +603,7 @@ function initMonthSelectors() {
     if (i + 1 === state.month) o.selected = true;
     mSel.appendChild(o);
   });
-  const curYear = new Date().getFullYear();
-  for (let y = curYear - 2; y <= curYear + 1; y++) {
+  for (let y = 2025; y <= 2030; y++) {
     const o = document.createElement('option');
     o.value = y; o.textContent = y;
     if (y === state.year) o.selected = true;
