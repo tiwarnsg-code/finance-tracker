@@ -720,6 +720,24 @@ body {
 .settings-item-info .label { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
 .settings-item-info .desc { font-size: 12px; color: var(--text-muted); }
 
+/* ── Version Info ── */
+.version-value {
+  font-size: 13px; font-weight: 600; font-family: monospace;
+  color: var(--text); white-space: nowrap;
+}
+.version-badge {
+  font-size: 11px; font-weight: 600; padding: 2px 10px;
+  border-radius: 999px; white-space: nowrap; display: inline-block;
+}
+.badge-ok      { background: #dcfce7; color: #15803d; }
+.badge-warn    { background: #fef9c3; color: #92400e; }
+.badge-error   { background: #fee2e2; color: #b91c1c; }
+.badge-loading { background: var(--border); color: var(--text-muted); }
+.version-note  { font-size: 12px; color: var(--text-muted); font-style: italic; min-height: 16px; }
+[data-theme="dark"] .badge-ok    { background: #14532d; color: #86efac; }
+[data-theme="dark"] .badge-warn  { background: #422006; color: #fde68a; }
+[data-theme="dark"] .badge-error { background: #450a0a; color: #fca5a5; }
+
 /* ===== BOTTOM NAV (Mobile only) ===== */
 .bottom-nav {
   display: none; position: fixed; bottom: 0; left: 0; right: 0;

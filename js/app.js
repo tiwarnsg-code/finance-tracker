@@ -150,6 +150,52 @@ function saveUserName() {
   showToast('บันทึกชื่อแล้ว ✓', 'success');
 }
 
+// ===== VERSION INFO =====
+const _FE_VERSION = '1.5.0';
+const _FE_UPDATED = '2026-04-17';
+
+async function loadVersionInfo() {
+  // Frontend version (always available)
+  const feEl = document.getElementById('version-frontend');
+  if (feEl) feEl.textContent = `v${_FE_VERSION}  (${_fmtVersionDate(_FE_UPDATED)})`;
+
+  // Backend version (fetched from Apps Script)
+  const beEl    = document.getElementById('version-backend');
+  const beNote  = document.getElementById('version-backend-note');
+  const beStatus = document.getElementById('version-backend-status');
+
+  if (!beEl) return;
+  if (!api.isConfigured()) {
+    beEl.textContent = '—';
+    if (beStatus) { beStatus.textContent = 'ยังไม่ได้เชื่อมต่อ'; beStatus.className = 'version-badge badge-warn'; }
+    return;
+  }
+  beEl.textContent = 'กำลังโหลด...';
+  if (beStatus) beStatus.className = 'version-badge badge-loading';
+  try {
+    const v = await api.getVersion();
+    beEl.textContent = `v${v.version}  (${_fmtVersionDate(v.updated_at)})`;
+    if (beNote) beNote.textContent = v.note || '';
+
+    const isSame = v.version === _FE_VERSION;
+    if (beStatus) {
+      beStatus.textContent = isSame ? '✓ ซิงค์แล้ว' : '⚠ เวอร์ชันต่างกัน';
+      beStatus.className   = 'version-badge ' + (isSame ? 'badge-ok' : 'badge-warn');
+    }
+  } catch (e) {
+    beEl.textContent = 'ดึงข้อมูลไม่ได้';
+    if (beStatus) { beStatus.textContent = '✕ เชื่อมต่อล้มเหลว'; beStatus.className = 'version-badge badge-error'; }
+  }
+}
+
+function _fmtVersionDate(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+  } catch { return dateStr; }
+}
+
 // ===== THEME =====
 function initTheme() {
   const mode  = localStorage.getItem('ft_theme_mode')  || 'light';
@@ -308,6 +354,7 @@ function navigate(view) {
     case 'fixed-costs':  renderFixedCosts(); break;
     case 'savings':      renderSavings(); break;
     case 'reports':      renderReports(); break;
+    case 'settings':     loadVersionInfo(); applyUserName(); break;
   }
 }
 

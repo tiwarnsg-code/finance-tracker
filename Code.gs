@@ -3,6 +3,14 @@
 // คัดลอกโค้ดนี้ทั้งหมดไปวางใน Google Apps Script แล้ว Deploy
 // =============================================================
 
+// ── VERSION ──────────────────────────────────────────────────
+const APP_VERSION = {
+  version:    '1.5.0',
+  updated_at: '2026-04-17T00:00:00+07:00',   // แก้วันนี้ทุกครั้งที่ Re-deploy
+  note:       'Cumulative income, savings lock, double-submit guard, month cache'
+};
+// ─────────────────────────────────────────────────────────────
+
 const SHEETS = {
   TRANSACTIONS: 'Transactions',
   CREDIT_CARDS: 'CreditCards',
@@ -108,6 +116,7 @@ function dispatch_(action, params) {
     case 'deleteSavings': return deleteRow_(SHEETS.SAVINGS, params.id);
     case 'getSummary':            return getSummary_(params);
     case 'getAllData':             return getAllData_(params);
+    case 'getVersion':            return APP_VERSION;
     default: throw new Error('Unknown action: ' + action);
   }
 }

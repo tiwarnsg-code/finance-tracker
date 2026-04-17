@@ -95,6 +95,9 @@ class FinanceAPI {
   updateSavings(data) { return this.call('updateSavings', { data }); }
   deleteSavings(id) { return this.call('deleteSavings', { id }); }
 
+  // Version
+  getVersion() { return this.call('getVersion'); }
+
 }
 
 const api = new FinanceAPI();

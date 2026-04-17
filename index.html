@@ -568,6 +568,40 @@
             </div>
           </div>
 
+          <!-- Version Info -->
+          <div class="settings-section">
+            <h3 class="settings-title">🔖 เวอร์ชันและอัพเดต</h3>
+
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="label">🖥️ Frontend (เว็บแอป)</div>
+                <div class="desc">เวอร์ชันของไฟล์ HTML/JS/CSS ที่คุณใช้งานอยู่</div>
+              </div>
+              <span class="version-value" id="version-frontend">—</span>
+            </div>
+
+            <div class="settings-item" style="align-items:flex-start;flex-direction:column;gap:8px">
+              <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+                <div class="settings-item-info">
+                  <div class="label">☁️ Backend (Google Apps Script)</div>
+                  <div class="desc">เวอร์ชันของ Code.gs ที่ Deploy ไว้ใน Google Apps Script</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+                  <span class="version-value" id="version-backend">—</span>
+                  <span class="version-badge badge-loading" id="version-backend-status">กำลังโหลด...</span>
+                </div>
+              </div>
+              <div class="version-note" id="version-backend-note"></div>
+            </div>
+
+            <div class="settings-item" style="background:var(--bg);border-radius:var(--radius-sm);padding:10px 14px;margin-top:4px">
+              <div class="settings-item-info" style="gap:2px">
+                <div class="label" style="font-size:12px;color:var(--text-muted)">💡 หากเวอร์ชันต่างกัน</div>
+                <div class="desc">ไปที่ <strong>script.google.com</strong> → Deploy → New deployment เพื่ออัพเดต Code.gs ให้ตรงกับเว็บ</div>
+              </div>
+            </div>
+          </div>
+
           <div class="settings-section">
             <h3 class="settings-title">🎨 ธีมและสีหลัก</h3>
             <div class="settings-item">
