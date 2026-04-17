@@ -574,8 +574,11 @@ function renderTransactions() {
       <td>
         <div style="display:flex;gap:4px;flex-wrap:wrap">
           ${tx.slip_ref && String(tx.slip_ref).trim() ? `<span class="tx-ref-badge" title="เลขที่รายการ: ${esc(tx.slip_ref)}">🧾 ${esc(String(tx.slip_ref).trim())}</span>` : ''}
-          <button class="btn btn-outline btn-xs" onclick="openTransactionModal('${tx.id}')">แก้ไข</button>
-          <button class="btn btn-danger btn-xs" onclick="confirmDelete('transaction','${tx.id}','${esc(tx.description||'รายการนี้')}')">ลบ</button>
+          ${isSavingsTx(tx)
+            ? `<span style="font-size:11px;color:var(--text-muted);padding:2px 8px;border-radius:999px;background:var(--border);display:inline-block">🔒 รายการออมเงิน</span>`
+            : `<button class="btn btn-outline btn-xs" onclick="openTransactionModal('${tx.id}')">แก้ไข</button>
+               <button class="btn btn-danger btn-xs" onclick="confirmDelete('transaction','${tx.id}','${esc(tx.description||'รายการนี้')}')">ลบ</button>`
+          }
         </div>
       </td>
     </tr>`;
@@ -1091,10 +1094,7 @@ function renderSavings() {
         ${fmt(bal || 0)}
       </td>
       <td>
-        <div style="display:flex;gap:4px">
-          <button class="btn btn-outline btn-xs" onclick="openSavingsModal('${r.type}','${r.id}')">แก้ไข</button>
-          <button class="btn btn-danger btn-xs" onclick="confirmDeleteSavings('${r.id}','${esc(r.description||'รายการนี้')}')">ลบ</button>
-        </div>
+        <span style="font-size:11px;color:var(--text-muted);padding:2px 8px;border-radius:999px;background:var(--border);display:inline-block">🔒 บันทึกแล้ว</span>
       </td>
     </tr>`;
   }).join('');
@@ -2660,6 +2660,12 @@ function toDateInput(date) {
 
 function esc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Returns true if a transaction was auto-created by the savings module (immutable)
+function isSavingsTx(tx) {
+  const desc = String(tx.description || '');
+  return desc.startsWith('🏦 ออมเงิน') || desc.startsWith('🏦 นำเงินออมกลับ');
 }
 
 function getCatInfo(catId, type) {
