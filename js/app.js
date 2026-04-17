@@ -105,7 +105,7 @@ function _unlockSave(btn) {
 
 // ===== AUTH / SESSION =====
 // Admin: หลัง deploy Auth.gs แล้ว วาง URL ที่นี่ได้เลย (ไม่บังคับ — ใส่ก็ข้ามหน้า setup อัตโนมัติ)
-const AUTH_SCRIPT_URL = '';
+const AUTH_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxgA9ZgjhxEblNQGzKTBj-sMioSHSJk0lY2VRcAcKo9KVWKuuyDMf9dRwsIh6jO91oX/exec';
 
 const _SESSION_KEY = 'ft_session';
 

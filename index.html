@@ -37,34 +37,6 @@
   </div>
 </div>
 
-<!-- ===== ADMIN SETUP SCREEN (ตั้งค่าครั้งแรก) ===== -->
-<div id="admin-setup-screen" class="hidden">
-  <div class="setup-card">
-    <div class="setup-logo">
-      <span class="logo-icon">⚙️</span>
-      <h1>Admin Setup</h1>
-      <p>ตั้งค่าครั้งแรก — กรอก <strong>Auth Script URL</strong> เพื่อเปิดระบบ Login</p>
-    </div>
-    <div class="setup-steps">
-      <div class="setup-step">
-        <div class="step-num">1</div>
-        <div class="step-text">ไปที่ <strong>script.google.com</strong> → สร้างโปรเจกต์ใหม่ → วางโค้ดจากไฟล์ <code>Auth.gs</code></div>
-      </div>
-      <div class="setup-step">
-        <div class="step-num">2</div>
-        <div class="step-text">Deploy → New deployment → Web app → Execute as: <strong>Me</strong> → Who has access: <strong>Anyone</strong></div>
-      </div>
-      <div class="setup-step">
-        <div class="step-num">3</div>
-        <div class="step-text">คัดลอก <strong>Web app URL</strong> ที่ได้ แล้ววางด้านล่าง (ทำครั้งเดียว)</div>
-      </div>
-    </div>
-    <div class="setup-form">
-      <input type="url" id="auth-url-input" placeholder="https://script.google.com/macros/s/...../exec (Auth.gs URL)" autocomplete="off">
-      <button class="btn-setup" id="admin-save-btn" onclick="saveAuthUrl()">บันทึกและไปหน้า Login →</button>
-    </div>
-  </div>
-</div>
 
 <!-- ===== MAIN APP ===== -->
 <div id="app" class="hidden">
