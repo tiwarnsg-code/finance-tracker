@@ -281,6 +281,69 @@ function logout() {
 // keep old name for any references
 function disconnectAPI() { logout(); }
 
+// ── Change Password ────────────────────────────────────────────
+function openChangePasswordModal() {
+  document.getElementById('cp-current').value = '';
+  document.getElementById('cp-new').value     = '';
+  document.getElementById('cp-confirm').value = '';
+  const errEl = document.getElementById('cp-error');
+  if (errEl) errEl.classList.add('hidden');
+  openModal('modal-change-password');
+  setTimeout(() => document.getElementById('cp-current').focus(), 150);
+}
+
+async function changePassword() {
+  const current = document.getElementById('cp-current').value;
+  const newPw   = document.getElementById('cp-new').value;
+  const confirm = document.getElementById('cp-confirm').value;
+  const errEl   = document.getElementById('cp-error');
+  const btn     = document.getElementById('cp-save-btn');
+
+  errEl.classList.add('hidden');
+
+  if (!current || !newPw || !confirm) {
+    errEl.textContent = 'กรุณากรอกข้อมูลให้ครบทุกช่อง';
+    errEl.classList.remove('hidden'); return;
+  }
+  if (newPw.length < 6) {
+    errEl.textContent = 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร';
+    errEl.classList.remove('hidden'); return;
+  }
+  if (newPw !== confirm) {
+    errEl.textContent = 'รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน';
+    errEl.classList.remove('hidden');
+    document.getElementById('cp-confirm').focus(); return;
+  }
+
+  const session = _getSession();
+  if (!session || !session.username) {
+    errEl.textContent = 'ไม่พบข้อมูล Session กรุณา Login ใหม่';
+    errEl.classList.remove('hidden'); return;
+  }
+
+  const authUrl = _getAuthUrl();
+  if (!authUrl) {
+    errEl.textContent = 'ไม่พบ Auth URL';
+    errEl.classList.remove('hidden'); return;
+  }
+
+  if (!_lockSave(btn)) return;
+  try {
+    await _authCall(authUrl, {
+      action:      'changepassword',
+      username:    session.username,
+      password:    current,
+      newpassword: newPw
+    });
+    closeModal('modal-change-password');
+    showToast('เปลี่ยนรหัสผ่านสำเร็จ ✓', 'success');
+  } catch (e) {
+    errEl.textContent = e.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+    errEl.classList.remove('hidden');
+    _unlockSave(btn);
+  }
+}
+
 function applyUserName() {
   const session = _getSession();
   const name = localStorage.getItem('ft_user_name') || (session && session.displayName) || '';

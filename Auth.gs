@@ -19,9 +19,10 @@ function doGet(e) {
   let result;
   try {
     const action = (p.action || '').toLowerCase();
-    if      (action === 'login') result = login_(p.username || '', p.password || '');
-    else if (action === 'ping')  result = { success: true,  data: { status: 'ok' } };
-    else                         result = { success: false, error: 'Unknown action' };
+    if      (action === 'login')          result = login_(p.username || '', p.password || '');
+    else if (action === 'changepassword') result = changePassword_(p.username || '', p.password || '', p.newpassword || '');
+    else if (action === 'ping')           result = { success: true,  data: { status: 'ok' } };
+    else                                  result = { success: false, error: 'Unknown action' };
   } catch (err) {
     result = { success: false, error: err.message };
   }
@@ -78,4 +79,49 @@ function login_(username, password) {
   }
 
   return { success: false, error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' };
+}
+
+// ── Change Password ───────────────────────────────────────────
+function changePassword_(username, currentPassword, newPassword) {
+  const u    = username.trim();
+  const cur  = currentPassword.trim();
+  const nw   = newPassword.trim();
+
+  if (!u || !cur || !nw) {
+    return { success: false, error: 'ข้อมูลไม่ครบถ้วน' };
+  }
+  if (nw.length < 6) {
+    return { success: false, error: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร' };
+  }
+
+  let ss, sheet;
+  try {
+    ss    = SpreadsheetApp.openById(AUTH_SPREADSHEET_ID);
+    sheet = ss.getSheetByName(AUTH_SHEET_NAME);
+  } catch (err) {
+    return { success: false, error: 'เข้าถึง Spreadsheet ไม่ได้: ' + err.message };
+  }
+
+  if (!sheet) {
+    return { success: false, error: 'ไม่พบชีต "' + AUTH_SHEET_NAME + '"' };
+  }
+
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    const rowUser = String(rows[i][0] || '').trim();
+    const rowPass = String(rows[i][1] || '').trim();
+
+    if (!rowUser) continue;
+
+    if (rowUser === u) {
+      if (rowPass !== cur) {
+        return { success: false, error: 'รหัสผ่านปัจจุบันไม่ถูกต้อง' };
+      }
+      // Column B = index 1 → column 2
+      sheet.getRange(i + 1, 2).setValue(nw);
+      return { success: true, data: { message: 'เปลี่ยนรหัสผ่านสำเร็จ' } };
+    }
+  }
+
+  return { success: false, error: 'ไม่พบบัญชีผู้ใช้นี้' };
 }
