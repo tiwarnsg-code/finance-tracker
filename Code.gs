@@ -465,6 +465,12 @@ function getSummary_(params) {
   const transactions = getTransactions_({ year, month });
   const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+
+  // All-time cumulative totals (no date filter)
+  const allTx = getTransactions_({});
+  const cumulativeIncome  = allTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const cumulativeExpense = allTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const cumulativeBalance = cumulativeIncome - cumulativeExpense;
   const expenseByCategory = {};
   transactions.filter(t => t.type === 'expense').forEach(t => {
     expenseByCategory[t.category] = (expenseByCategory[t.category] || 0) + t.amount;
@@ -500,7 +506,8 @@ function getSummary_(params) {
     return { ...card, used: Math.max(0, used), available: card.credit_limit - Math.max(0, used), monthUsed };
   });
   return { income, expense, balance: income - expense,
-    savingsRate: income > 0 ? parseFloat(((income - expense) / income * 100).toFixed(1)) : 0,
+    cumulativeIncome, cumulativeExpense, cumulativeBalance,
+    savingsRate: cumulativeIncome > 0 ? parseFloat(((cumulativeBalance) / cumulativeIncome * 100).toFixed(1)) : 0,
     expenseByCategory, incomeByCategory, totalFixed, paidFixed,
     remainingFixed: totalFixed - paidFixed, fixedCosts, monthlyPayments,
     trend, creditSummary, recentTransactions: transactions.slice(0, 10) };

@@ -400,14 +400,14 @@ function renderDashboard() {
   const s = state.data.summary;
   if (!s) return;
 
-  // Metrics
-  document.getElementById('dash-income').textContent = fmt(s.income);
-  document.getElementById('dash-expense').textContent = fmt(s.expense);
-  document.getElementById('dash-balance').textContent = fmt(s.balance);
+  // Metrics — income & balance are ALL-TIME cumulative
+  document.getElementById('dash-income').textContent  = fmt(s.cumulativeIncome  ?? s.income);
+  document.getElementById('dash-expense').textContent = fmt(s.expense);   // still monthly
+  document.getElementById('dash-balance').textContent = fmt(s.cumulativeBalance ?? s.balance);
   document.getElementById('dash-savings').textContent = s.savingsRate + '%';
-  document.getElementById('dash-income-sub').textContent = `${countTx('income')} รายการ`;
-  document.getElementById('dash-expense-sub').textContent = `${countTx('expense')} รายการ`;
-  const balColor = s.balance >= 0 ? 'var(--success)' : 'var(--danger)';
+  document.getElementById('dash-income-sub').textContent  = 'สะสมทั้งหมด';
+  document.getElementById('dash-expense-sub').textContent = `เดือนนี้ ${countTx('expense')} รายการ`;
+  const balColor = (s.cumulativeBalance ?? s.balance) >= 0 ? 'var(--success)' : 'var(--danger)';
   document.getElementById('dash-balance').style.color = balColor;
 
   // Charts
