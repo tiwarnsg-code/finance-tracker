@@ -1134,16 +1134,25 @@
     <div class="modal-body">
       <div class="form-group">
         <label class="form-label">รหัสผ่านปัจจุบัน</label>
-        <input type="password" class="form-input" id="cp-current" placeholder="กรอกรหัสผ่านปัจจุบัน" autocomplete="current-password">
+        <div class="pw-input-wrap">
+          <input type="password" class="form-input" id="cp-current" placeholder="กรอกรหัสผ่านปัจจุบัน" autocomplete="current-password">
+          <button type="button" class="pw-eye-btn" onclick="togglePwEye('cp-current',this)" tabindex="-1">👁</button>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">รหัสผ่านใหม่</label>
-        <input type="password" class="form-input" id="cp-new" placeholder="อย่างน้อย 6 ตัวอักษร" autocomplete="new-password">
+        <div class="pw-input-wrap">
+          <input type="password" class="form-input" id="cp-new" placeholder="อย่างน้อย 6 ตัวอักษร" autocomplete="new-password">
+          <button type="button" class="pw-eye-btn" onclick="togglePwEye('cp-new',this)" tabindex="-1">👁</button>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">ยืนยันรหัสผ่านใหม่</label>
-        <input type="password" class="form-input" id="cp-confirm" placeholder="กรอกรหัสผ่านใหม่อีกครั้ง" autocomplete="new-password"
-               onkeydown="if(event.key==='Enter')changePassword()">
+        <div class="pw-input-wrap">
+          <input type="password" class="form-input" id="cp-confirm" placeholder="กรอกรหัสผ่านใหม่อีกครั้ง" autocomplete="new-password"
+                 onkeydown="if(event.key==='Enter')changePassword()">
+          <button type="button" class="pw-eye-btn" onclick="togglePwEye('cp-confirm',this)" tabindex="-1">👁</button>
+        </div>
       </div>
       <div id="cp-error" class="login-error hidden" style="margin-top:4px"></div>
     </div>
