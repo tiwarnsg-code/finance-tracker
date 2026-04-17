@@ -38,6 +38,10 @@
       </div>
     </div>
     <div class="setup-form">
+      <div class="setup-name-row">
+        <label class="setup-name-label">👤 ชื่อของคุณ</label>
+        <input type="text" id="setup-name-input" placeholder="เช่น สมชาย / Somchai" autocomplete="name" maxlength="40">
+      </div>
       <input type="url" id="api-url-input" placeholder="https://script.google.com/macros/s/...../exec" autocomplete="off">
       <button class="btn-setup" onclick="connectAPI()">เชื่อมต่อและเริ่มใช้งาน →</button>
     </div>
@@ -55,7 +59,7 @@
       <span class="logo-icon">💰</span>
       <div>
         <div class="logo-text">Finance Tracker</div>
-        <div class="logo-sub">รายรับ-รายจ่ายส่วนตัว</div>
+        <div class="logo-sub" id="sidebar-user-name">รายรับ-รายจ่ายส่วนตัว</div>
       </div>
     </div>
     <nav class="sidebar-nav">
@@ -505,6 +509,22 @@
       <!-- ===== SETTINGS VIEW ===== -->
       <div id="view-settings" class="view">
         <div style="max-width:640px">
+
+          <!-- User name section -->
+          <div class="settings-section">
+            <h3 class="settings-title">👤 ข้อมูลผู้ใช้</h3>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="label">ชื่อที่แสดงในแอป</div>
+                <div class="desc">ชื่อนี้จะแสดงที่เมนูด้านซ้าย เพื่อบอกว่า Finance Tracker นี้เป็นของใคร</div>
+              </div>
+            </div>
+            <div class="form-group">
+              <input type="text" class="form-input" id="settings-user-name" placeholder="เช่น สมชาย / Somchai" maxlength="40">
+            </div>
+            <button class="btn btn-primary" onclick="saveUserName()">บันทึกชื่อ</button>
+          </div>
+
           <div class="settings-section">
             <h3 class="settings-title">🔗 การเชื่อมต่อ Google Sheets</h3>
             <div class="settings-item">

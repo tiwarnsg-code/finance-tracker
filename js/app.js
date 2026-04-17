@@ -104,6 +104,26 @@ function showApp() {
   document.getElementById('setup-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('settings-api-url').value = localStorage.getItem('ft_api_url') || '';
+  applyUserName();
+}
+
+function applyUserName() {
+  const name = localStorage.getItem('ft_user_name') || '';
+  const el = document.getElementById('sidebar-user-name');
+  if (el) el.textContent = name ? '👤 ' + name : 'รายรับ-รายจ่ายส่วนตัว';
+  const settingsEl = document.getElementById('settings-user-name');
+  if (settingsEl) settingsEl.value = name;
+}
+
+function saveUserName() {
+  const name = (document.getElementById('settings-user-name').value || '').trim();
+  if (name) {
+    localStorage.setItem('ft_user_name', name);
+  } else {
+    localStorage.removeItem('ft_user_name');
+  }
+  applyUserName();
+  showToast('บันทึกชื่อแล้ว ✓', 'success');
 }
 
 // ===== THEME =====
@@ -153,11 +173,14 @@ function setThemeColor(color) {
 }
 
 function connectAPI() {
+  const nameVal = (document.getElementById('setup-name-input').value || '').trim();
+  if (!nameVal) { showToast('กรุณากรอกชื่อของคุณก่อน', 'error'); return; }
   const url = document.getElementById('api-url-input').value.trim();
   if (!url) { showToast('กรุณากรอก URL', 'error'); return; }
   if (!url.startsWith('https://script.google.com')) {
     showToast('URL ไม่ถูกต้อง ต้องเป็น script.google.com', 'error'); return;
   }
+  localStorage.setItem('ft_user_name', nameVal);
   api.setUrl(url);
   showApp();
   initMonthSelectors();
