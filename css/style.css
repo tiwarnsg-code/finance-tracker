@@ -1237,10 +1237,10 @@ body {
   .hamburger { display: flex; }
   .content-header {
     padding: 8px 14px; gap: 6px;
-    height: auto; flex-wrap: wrap;
+    height: auto;
   }
-  .header-left { flex: 1 1 100%; min-width: 0; }
-  .header-right { flex: 1 1 100%; justify-content: flex-end; }
+  .header-left { flex: 1; min-width: 0; }
+  .header-right { flex-shrink: 0; justify-content: flex-end; }
   .page-title { font-size: 15px; }
   .month-selector { padding: 5px 8px; gap: 4px; }
   .month-selector select { font-size: 12px; max-width: 60px; }
