@@ -110,14 +110,14 @@ const AUTH_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxgA9ZgjhxEblNQ
 const _SESSION_KEY = 'ft_session';
 
 function _getSession() {
-  try { return JSON.parse(sessionStorage.getItem(_SESSION_KEY) || 'null'); }
+  try { return JSON.parse(localStorage.getItem(_SESSION_KEY) || 'null'); }
   catch { return null; }
 }
 function _setSession(data) {
-  sessionStorage.setItem(_SESSION_KEY, JSON.stringify(data));
+  localStorage.setItem(_SESSION_KEY, JSON.stringify(data));
 }
 function _clearSession() {
-  sessionStorage.removeItem(_SESSION_KEY);
+  localStorage.removeItem(_SESSION_KEY);
   localStorage.removeItem('ft_api_url'); // clear stored api url too
 }
 function _getAuthUrl() {
