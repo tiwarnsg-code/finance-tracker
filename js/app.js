@@ -643,14 +643,36 @@ function onMonthRangeChange() {
 }
 
 // ===== DATA LOADING =====
+
+// Lightweight fingerprint — fast check before committing to a full re-render
+function _dataFingerprint(data) {
+  const s = data.summary || {};
+  return [
+    (data.transactions        || []).length,
+    (data.creditTransactions  || []).length,
+    (data.savings             || []).length,
+    (data.fixedCosts          || []).length,
+    (data.monthlyFixed        || []).length,
+    s.income, s.expense, s.balance, s.savingsRate
+  ].join('|');
+}
+
 function _applyData(data) {
-  state.data.transactions     = data.transactions     || [];
-  state.data.creditCards      = data.creditCards      || [];
-  state.data.creditTransactions = data.creditTransactions || [];
-  state.data.fixedCosts       = data.fixedCosts       || [];
-  state.data.monthlyFixed     = data.monthlyFixed     || [];
-  state.data.summary          = data.summary          || {};
-  state.data.savings          = data.savings          || [];
+  // Pre-compute _ts on every transaction once so filter & sort never call new Date() per-row
+  const txs = data.transactions || [];
+  txs.forEach(t => { if (!t._ts) t._ts = t.date ? new Date(t.date).getTime() : 0; });
+  const savRows = data.savings || [];
+  savRows.forEach(r => { if (!r._ts) r._ts = r.date ? new Date(r.date).getTime() : 0; });
+  const ccTxs = data.creditTransactions || [];
+  ccTxs.forEach(t => { if (!t._ts) t._ts = t.date ? new Date(t.date).getTime() : 0; });
+
+  state.data.transactions       = txs;
+  state.data.creditCards        = data.creditCards      || [];
+  state.data.creditTransactions = ccTxs;
+  state.data.fixedCosts         = data.fixedCosts       || [];
+  state.data.monthlyFixed       = data.monthlyFixed     || [];
+  state.data.summary            = data.summary          || {};
+  state.data.savings            = savRows;
   navigate(state.view);
 }
 
@@ -670,7 +692,12 @@ async function loadData(silent = false, forceRefresh = false) {
   setSyncStatus('syncing');
   try {
     const data = await api.getAllData({ year: state.year, month: state.month, months: state.viewMonths });
-    _dataCache[key] = data;           // store in cache
+    // Silent auto-refresh: skip re-render if data is identical to what's already shown
+    if (silent && _dataCache[key] && _dataFingerprint(data) === _dataFingerprint(_dataCache[key])) {
+      setSyncStatus('synced');
+      return;
+    }
+    _dataCache[key] = data;
     _applyData(data);
     setSyncStatus('synced');
     if (!silent) showToast('โหลดข้อมูลสำเร็จ', 'success');
@@ -842,18 +869,16 @@ function renderTransactions() {
   const cat = document.getElementById('tx-filter-cat').value;
   const search = document.getElementById('tx-search').value.toLowerCase();
 
-  // Client-side date range filter (works even before backend re-deployment)
-  let txs = state.data.transactions.filter(t => {
-    if (!t.date) return false;
-    const d = new Date(t.date);
-    if (state.viewMonths <= 1) {
-      return d.getFullYear() === state.year && d.getMonth() + 1 === state.month;
-    }
-    // Multi-month: startDate = first day (viewMonths ago), endDate = last day of selected month
-    const start = new Date(state.year, state.month - state.viewMonths, 1);
-    const end   = new Date(state.year, state.month, 0); // last day of selected month
-    return d >= start && d <= end;
-  });
+  // Client-side date range filter — use pre-computed _ts (no new Date per row)
+  let filterStart, filterEnd;
+  if (state.viewMonths <= 1) {
+    filterStart = new Date(state.year, state.month - 1, 1).getTime();
+    filterEnd   = new Date(state.year, state.month, 0, 23, 59, 59, 999).getTime();
+  } else {
+    filterStart = new Date(state.year, state.month - state.viewMonths, 1).getTime();
+    filterEnd   = new Date(state.year, state.month, 0, 23, 59, 59, 999).getTime();
+  }
+  let txs = state.data.transactions.filter(t => t._ts >= filterStart && t._ts <= filterEnd);
   if (type !== 'all') txs = txs.filter(t => t.type === type);
   if (cat) txs = txs.filter(t => t.category === cat);
   if (search) txs = txs.filter(t =>
@@ -862,13 +887,12 @@ function renderTransactions() {
     (t.category||'').toLowerCase().includes(search)
   );
 
-  // Pre-compute sort keys once (avoids repeated new Date / parseFloat in comparator)
+  // Sort — _ts already pre-computed in _applyData(); _amt computed once if needed
   const dir = state.txSortDir === 'asc' ? 1 : -1;
   if (state.txSortCol === 'date') {
-    txs.forEach(t => { t._ts = t.date ? new Date(t.date).getTime() : 0; });
     txs.sort((a, b) => dir * (a._ts - b._ts));
   } else if (state.txSortCol === 'amount') {
-    txs.forEach(t => { t._amt = parseFloat(t.amount) || 0; });
+    txs.forEach(t => { if (t._amt === undefined) t._amt = parseFloat(t.amount) || 0; });
     txs.sort((a, b) => dir * (a._amt - b._amt));
   } else if (state.txSortCol === 'type') {
     txs.sort((a, b) => dir * (a.type || '').localeCompare(b.type || ''));
@@ -1210,13 +1234,13 @@ function selectCard(cardId) {
     return;
   }
   // Sort CC transactions (pre-compute keys for date/amount)
+  // Sort — _ts already pre-computed in _applyData()
   const ccDir = state.ccTxSortDir === 'asc' ? 1 : -1;
   const ccSorted = [...regularRows];
   if (state.ccTxSortCol === 'date') {
-    ccSorted.forEach(t => { t._ts = t.date ? new Date(t.date).getTime() : 0; });
     ccSorted.sort((a, b) => ccDir * (a._ts - b._ts));
   } else if (state.ccTxSortCol === 'amount') {
-    ccSorted.forEach(t => { t._amt = parseFloat(t.amount) || 0; });
+    ccSorted.forEach(t => { if (t._amt === undefined) t._amt = parseFloat(t.amount) || 0; });
     ccSorted.sort((a, b) => ccDir * (a._amt - b._amt));
   } else if (state.ccTxSortCol === 'description') {
     ccSorted.sort((a, b) => ccDir * (a.description||'').localeCompare(b.description||''));
@@ -1380,17 +1404,16 @@ function renderFixedCosts() {
 // ===== SAVINGS =====
 function renderSavings() {
   const rows = state.data.savings || [];
-  // Sort by date desc for display, but compute running balance in chronological order
-  const chronological = [...rows].sort((a, b) => new Date(a.date) - new Date(b.date));
-  let running = 0;
+  // Sort chronologically using pre-computed _ts; single pass for balance + totals
+  const chronological = [...rows].sort((a, b) => a._ts - b._ts);
+  let running = 0, totalDeposited = 0, totalWithdrawn = 0;
   const balanceMap = {};
   chronological.forEach(r => {
     const amt = parseFloat(r.amount) || 0;
-    running += r.type === 'deposit' ? amt : -amt;
+    if (r.type === 'deposit') { totalDeposited += amt; running += amt; }
+    else                      { totalWithdrawn += amt; running -= amt; }
     balanceMap[r.id] = running;
   });
-  const totalDeposited  = rows.filter(r => r.type === 'deposit').reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
-  const totalWithdrawn  = rows.filter(r => r.type === 'withdraw').reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
   const balance = totalDeposited - totalWithdrawn;
 
   const balEl = document.getElementById('savings-balance-amount');
@@ -1409,14 +1432,13 @@ function renderSavings() {
     tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="icon">🏦</div><h3>ยังไม่มีรายการออม</h3><p>กดปุ่ม "ออมเงิน" เพื่อเริ่มออม</p></div></td></tr>`;
     return;
   }
-  // Sort based on state (pre-compute keys for date/amount)
+  // Sort — _ts already pre-computed in _applyData()
   const sDir = state.savingsSortDir === 'asc' ? 1 : -1;
   const sorted = [...rows];
   if (state.savingsSortCol === 'date') {
-    sorted.forEach(r => { r._ts = r.date ? new Date(r.date).getTime() : 0; });
     sorted.sort((a, b) => sDir * (a._ts - b._ts));
   } else if (state.savingsSortCol === 'amount') {
-    sorted.forEach(r => { r._amt = parseFloat(r.amount) || 0; });
+    sorted.forEach(r => { if (r._amt === undefined) r._amt = parseFloat(r.amount) || 0; });
     sorted.sort((a, b) => sDir * (a._amt - b._amt));
   } else if (state.savingsSortCol === 'type') {
     sorted.sort((a, b) => sDir * (a.type || '').localeCompare(b.type || ''));
@@ -1717,7 +1739,14 @@ const CHART_DEFAULTS = {
 function renderTrendChart(canvasId, trend, tall = false) {
   const canvas = document.getElementById(canvasId);
   if (!canvas || !trend) return;
-  if (state.charts[canvasId]) { state.charts[canvasId].destroy(); }
+  const existing = state.charts[canvasId];
+  if (existing) {
+    existing.data.labels            = trend.map(t => t.label);
+    existing.data.datasets[0].data  = trend.map(t => t.income);
+    existing.data.datasets[1].data  = trend.map(t => t.expense);
+    existing.update('none'); // 'none' = instant, no animation
+    return;
+  }
   state.charts[canvasId] = new Chart(canvas, {
     type: 'line',
     data: {
@@ -1738,12 +1767,22 @@ function renderTrendChart(canvasId, trend, tall = false) {
 function renderCategoryDonut(canvasId, catData, type) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
-  if (state.charts[canvasId]) { state.charts[canvasId].destroy(); }
-  if (!catData || !Object.keys(catData).length) { return; }
+  if (!catData || !Object.keys(catData).length) {
+    if (state.charts[canvasId]) { state.charts[canvasId].destroy(); delete state.charts[canvasId]; }
+    return;
+  }
   const entries = Object.entries(catData).filter(([,v]) => v > 0);
   const labels = entries.map(([k]) => { const c = getCatInfo(k, type); return c.icon + ' ' + c.name; });
-  const data = entries.map(([,v]) => v);
+  const data   = entries.map(([,v]) => v);
   const colors = entries.map(([k]) => getCatInfo(k, type).color);
+  const existing = state.charts[canvasId];
+  if (existing) {
+    existing.data.labels                        = labels;
+    existing.data.datasets[0].data              = data;
+    existing.data.datasets[0].backgroundColor   = colors;
+    existing.update('none');
+    return;
+  }
   state.charts[canvasId] = new Chart(canvas, {
     type: 'doughnut',
     data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: 'white', hoverOffset: 6 }] },
@@ -1760,7 +1799,14 @@ function renderCategoryDonut(canvasId, catData, type) {
 function renderMonthlyBarChart(canvasId, trend) {
   const canvas = document.getElementById(canvasId);
   if (!canvas || !trend) return;
-  if (state.charts[canvasId]) { state.charts[canvasId].destroy(); }
+  const existing = state.charts[canvasId];
+  if (existing) {
+    existing.data.labels           = trend.map(t => t.label);
+    existing.data.datasets[0].data = trend.map(t => t.income);
+    existing.data.datasets[1].data = trend.map(t => t.expense);
+    existing.update('none');
+    return;
+  }
   state.charts[canvasId] = new Chart(canvas, {
     type: 'bar',
     data: {
