@@ -1180,40 +1180,14 @@ function selectCard(cardId) {
       plansEl.innerHTML =
         `<div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--text)">📅 แผนผ่อนชำระ</div>` +
         planRows.map(plan => {
-          const paid    = parseInt(plan.installment_paid)    || 0;
-          const total   = parseInt(plan.installment_total)   || 0;
-          const monthly = parseFloat(plan.installment_monthly) || 0;
-          const origAmt = parseFloat(plan.original_amount)  || 0;
-          const pct     = total > 0 ? Math.round((paid / total) * 100) : 0;
-          const isDone  = paid >= total;
-          const cat     = getCatInfo(plan.category, 'expense');
-
-          // Build per-installment rows (paid ✅ / active button / pending grayed)
-          const itemRows = Array.from({ length: total }, (_, i) => {
-            const num = i + 1;
-            if (num <= paid) {
-              return `<div class="iplan-item paid">
-                <span class="iplan-item-num">งวดที่ ${num}</span>
-                <span class="iplan-item-amt">${fmt(monthly)}</span>
-                <span class="iplan-item-status">✅ จ่ายแล้ว</span>
-              </div>`;
-            } else if (num === paid + 1) {
-              return `<div class="iplan-item active">
-                <span class="iplan-item-num">งวดที่ ${num}</span>
-                <span class="iplan-item-amt">${fmt(monthly)}</span>
-                <button class="btn btn-primary iplan-pay-btn"
-                        onclick="payNextInstallment('${plan.id}','${cardId}',${monthly},${num},${total})">
-                  💳 จ่ายงวดนี้
-                </button>
-              </div>`;
-            } else {
-              return `<div class="iplan-item pending">
-                <span class="iplan-item-num">งวดที่ ${num}</span>
-                <span class="iplan-item-amt">${fmt(monthly)}</span>
-                <span class="iplan-item-status">รอการชำระ</span>
-              </div>`;
-            }
-          }).join('');
+          const paid     = parseInt(plan.installment_paid)    || 0;
+          const total    = parseInt(plan.installment_total)   || 0;
+          const monthly  = parseFloat(plan.installment_monthly) || 0;
+          const origAmt  = parseFloat(plan.original_amount)  || 0;
+          const pct      = total > 0 ? Math.round((paid / total) * 100) : 0;
+          const isDone   = paid >= total;
+          const nextNum  = paid + 1;
+          const cat      = getCatInfo(plan.category, 'expense');
 
           return `<div class="installment-plan-card${isDone ? ' done' : ''}">
             <div class="iplan-header">
@@ -1223,21 +1197,28 @@ function selectCard(cardId) {
                 <div class="iplan-meta">ยอดรวม ${fmt(origAmt)} · ${fmt(monthly)}/งวด · เริ่ม ${fmtDate(plan.date)}</div>
               </div>
               <div class="iplan-status${isDone ? ' done' : ''}">
-                ${isDone ? '✅ ครบแล้ว' : `${paid}/${total} งวด`}
+                ${isDone ? '✅ ผ่อนครบแล้ว' : `งวด ${paid}/${total}`}
               </div>
             </div>
             <div class="iplan-bar-row">
               <div class="iplan-bar-bg"><div class="iplan-bar-fill" style="width:${pct}%"></div></div>
               <span class="iplan-pct">${pct}%</span>
             </div>
-            <div class="iplan-items">${isDone
-              ? `<div style="text-align:center;padding:10px 0;font-size:13px;color:var(--success);font-weight:600">🎉 ผ่อนครบทั้ง ${total} งวดแล้ว</div>`
-              : itemRows
-            }</div>
-            <div class="iplan-actions">
-              <button class="btn btn-outline btn-xs" onclick="openCreditTxModal('${plan.id}')">แก้ไขแผน</button>
-              <button class="btn btn-danger btn-xs" onclick="confirmDelete('creditTx','${plan.id}','แผนผ่อน: ${esc(plan.description||'')}')">ลบแผน</button>
-            </div>
+            ${isDone ? `<div style="font-size:12px;color:var(--success);text-align:center;padding:6px 0">✅ ผ่อนครบ ${total} งวด แล้ว</div>` : `
+            <div class="iplan-pay-row">
+              <label style="font-size:12px;color:var(--text-muted);white-space:nowrap">📅 วันที่ชำระ:</label>
+              <input type="date" class="form-input" id="iplan-date-${plan.id}"
+                     value="${toDateInput(new Date())}"
+                     style="width:145px;padding:5px 8px;font-size:13px;flex-shrink:0">
+              <button class="btn btn-primary btn-sm iplan-pay-btn"
+                      onclick="payNextInstallment('${plan.id}','${cardId}',${monthly},${nextNum},${total})">
+                💳 ชำระงวดที่ ${nextNum} (${fmt(monthly)})
+              </button>
+              <button class="btn btn-outline btn-xs" style="flex-shrink:0"
+                      onclick="openCreditTxModal('${plan.id}')">แก้ไขแผน</button>
+              <button class="btn btn-danger btn-xs" style="flex-shrink:0"
+                      onclick="confirmDelete('creditTx','${plan.id}','แผนผ่อน: ${esc(plan.description||'')}')">ลบแผน</button>
+            </div>`}
           </div>`;
         }).join('');
     } else {
@@ -1352,12 +1333,16 @@ function setCCTxSort(col) {
 
 // ── Pay the next pending installment on a plan ────────────────────────────
 async function payNextInstallment(planId, cardId, monthlyAmt, nextNum, totalMonths) {
+  const dateInput = document.getElementById('iplan-date-' + planId);
+  const payDate   = dateInput ? dateInput.value : toDateInput(new Date());
+  if (!payDate) { showToast('กรุณาระบุวันที่ชำระ', 'error'); return; }
+
   showLoading();
   try {
-    await api.payInstallment({ plan_id: planId, card_id: cardId, date: toDateInput(new Date()) });
+    await api.payInstallment({ plan_id: planId, card_id: cardId, date: payDate });
     const remaining = totalMonths - nextNum;
     showToast(
-      `✅ จ่ายงวดที่ ${nextNum}/${totalMonths} (${fmt(monthlyAmt)}) สำเร็จ` +
+      `✅ ชำระงวดที่ ${nextNum}/${totalMonths} (${fmt(monthlyAmt)}) สำเร็จ` +
       (remaining > 0 ? ` · เหลืออีก ${remaining} งวด` : ' · ผ่อนครบแล้ว! 🎉'),
       'success'
     );
