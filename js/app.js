@@ -207,8 +207,9 @@ async function loginUser() {
     applyUserName();
   } catch (e) {
     _showLoginError(e.message || 'เชื่อมต่อไม่ได้ กรุณาลองใหม่');
-    _unlockSave(btn);
     btn.textContent = 'เข้าสู่ระบบ →';
+  } finally {
+    _unlockSave(btn);
   }
 }
 
