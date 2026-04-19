@@ -36,6 +36,10 @@ const CATEGORIES = {
   ]
 };
 
+// Pre-built flat category lookup (built once, reused every getCatInfo call)
+const _ALL_CATS = [...CATEGORIES.income, ...CATEGORIES.expense, ...CATEGORIES.fixed];
+const _CAT_MAP  = Object.fromEntries(_ALL_CATS.map(c => [c.id, c]));
+
 // ===== FIXED COST EMOJI GROUPS =====
 const FC_EMOJI_GROUPS = [
   { id: 'home',     label: '🏠 บ้าน',       emoji: ['🏠','🏡','🏢','🏗️','🛋️','🪟','🚪','🔑','🧹','🧺','🧻','🪣','💡','🔧','🪛','🔨','🪜','🛏️','🛁','🚿'] },
@@ -155,9 +159,27 @@ function _bootApp() {
   _showScreen('app');
   initMonthSelectors();
   setupNavigation();
+  _initCategoryFilter();  // build filter dropdown once
   loadData();
   setInterval(() => { if (!document.hidden) loadData(true); }, 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) loadData(true); });
+}
+
+// Build tx category filter dropdown once — CATEGORIES never change at runtime
+function _initCategoryFilter() {
+  const catSel = document.getElementById('tx-filter-cat');
+  if (!catSel || catSel.dataset.initialized) return;
+  const frag = document.createDocumentFragment();
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = ''; defaultOpt.textContent = 'ทุกหมวดหมู่';
+  frag.appendChild(defaultOpt);
+  [...CATEGORIES.income, ...CATEGORIES.expense].forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.icon + ' ' + c.name;
+    frag.appendChild(o);
+  });
+  catSel.appendChild(frag);
+  catSel.dataset.initialized = '1';
 }
 
 function showApp() {
@@ -486,10 +508,7 @@ function connectAPI() {
   }
   localStorage.setItem('ft_user_name', nameVal);
   api.setUrl(url);
-  showApp();
-  initMonthSelectors();
-  setupNavigation();
-  loadData();
+  showApp(); // showApp → _bootApp → initMonthSelectors + setupNavigation + loadData (once)
 }
 
 function saveSettings() {
@@ -823,17 +842,6 @@ function renderTransactions() {
   const cat = document.getElementById('tx-filter-cat').value;
   const search = document.getElementById('tx-search').value.toLowerCase();
 
-  // Populate category filter
-  const catSel = document.getElementById('tx-filter-cat');
-  const currentCat = catSel.value;
-  catSel.innerHTML = '<option value="">ทุกหมวดหมู่</option>';
-  [...CATEGORIES.income, ...CATEGORIES.expense].forEach(c => {
-    const o = document.createElement('option');
-    o.value = c.id; o.textContent = c.icon + ' ' + c.name;
-    catSel.appendChild(o);
-  });
-  catSel.value = currentCat;
-
   // Client-side date range filter (works even before backend re-deployment)
   let txs = state.data.transactions.filter(t => {
     if (!t.date) return false;
@@ -854,29 +862,28 @@ function renderTransactions() {
     (t.category||'').toLowerCase().includes(search)
   );
 
-  // Sort
-  txs.sort((a, b) => {
-    const dir = state.txSortDir === 'asc' ? 1 : -1;
-    if (state.txSortCol === 'date') {
-      return dir * (new Date(a.date) - new Date(b.date));
-    }
-    if (state.txSortCol === 'amount') {
-      return dir * (parseFloat(a.amount) - parseFloat(b.amount));
-    }
-    if (state.txSortCol === 'type') {
-      return dir * (a.type || '').localeCompare(b.type || '');
-    }
-    if (state.txSortCol === 'category') {
-      return dir * (a.category || '').localeCompare(b.category || '');
-    }
-    if (state.txSortCol === 'description') {
-      return dir * (a.description || '').localeCompare(b.description || '');
-    }
-    return 0;
-  });
+  // Pre-compute sort keys once (avoids repeated new Date / parseFloat in comparator)
+  const dir = state.txSortDir === 'asc' ? 1 : -1;
+  if (state.txSortCol === 'date') {
+    txs.forEach(t => { t._ts = t.date ? new Date(t.date).getTime() : 0; });
+    txs.sort((a, b) => dir * (a._ts - b._ts));
+  } else if (state.txSortCol === 'amount') {
+    txs.forEach(t => { t._amt = parseFloat(t.amount) || 0; });
+    txs.sort((a, b) => dir * (a._amt - b._amt));
+  } else if (state.txSortCol === 'type') {
+    txs.sort((a, b) => dir * (a.type || '').localeCompare(b.type || ''));
+  } else if (state.txSortCol === 'category') {
+    txs.sort((a, b) => dir * (a.category || '').localeCompare(b.category || ''));
+  } else if (state.txSortCol === 'description') {
+    txs.sort((a, b) => dir * (a.description || '').localeCompare(b.description || ''));
+  }
 
-  const totalIncome = txs.filter(t => t.type === 'income').reduce((s,t) => s + parseFloat(t.amount), 0);
-  const totalExpense = txs.filter(t => t.type === 'expense').reduce((s,t) => s + parseFloat(t.amount), 0);
+  // Single pass for both totals
+  let totalIncome = 0, totalExpense = 0;
+  txs.forEach(t => {
+    if (t.type === 'income') totalIncome += parseFloat(t.amount) || 0;
+    else totalExpense += parseFloat(t.amount) || 0;
+  });
   document.getElementById('tx-total-income').textContent = '+' + fmt(totalIncome);
   document.getElementById('tx-total-expense').textContent = '-' + fmt(totalExpense);
 
@@ -1202,15 +1209,20 @@ function selectCard(cardId) {
     tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="icon">📋</div><p>ยังไม่มีรายการ</p></div></td></tr>`;
     return;
   }
-  // Sort CC transactions
-  const ccSorted = [...regularRows].sort((a, b) => {
-    const dir = state.ccTxSortDir === 'asc' ? 1 : -1;
-    if (state.ccTxSortCol === 'date')        return dir * (new Date(a.date) - new Date(b.date));
-    if (state.ccTxSortCol === 'amount')      return dir * ((parseFloat(a.amount)||0) - (parseFloat(b.amount)||0));
-    if (state.ccTxSortCol === 'description') return dir * (a.description||'').localeCompare(b.description||'');
-    if (state.ccTxSortCol === 'category')    return dir * (a.category||'').localeCompare(b.category||'');
-    return 0;
-  });
+  // Sort CC transactions (pre-compute keys for date/amount)
+  const ccDir = state.ccTxSortDir === 'asc' ? 1 : -1;
+  const ccSorted = [...regularRows];
+  if (state.ccTxSortCol === 'date') {
+    ccSorted.forEach(t => { t._ts = t.date ? new Date(t.date).getTime() : 0; });
+    ccSorted.sort((a, b) => ccDir * (a._ts - b._ts));
+  } else if (state.ccTxSortCol === 'amount') {
+    ccSorted.forEach(t => { t._amt = parseFloat(t.amount) || 0; });
+    ccSorted.sort((a, b) => ccDir * (a._amt - b._amt));
+  } else if (state.ccTxSortCol === 'description') {
+    ccSorted.sort((a, b) => ccDir * (a.description||'').localeCompare(b.description||''));
+  } else if (state.ccTxSortCol === 'category') {
+    ccSorted.sort((a, b) => ccDir * (a.category||'').localeCompare(b.category||''));
+  }
   tbody.innerHTML = ccSorted.map(tx => {
     const amount      = parseFloat(tx.amount) || 0;
     const isInstPay   = typeof tx.description === 'string' && tx.description.startsWith('ผ่อนงวด ');
@@ -1397,15 +1409,20 @@ function renderSavings() {
     tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="icon">🏦</div><h3>ยังไม่มีรายการออม</h3><p>กดปุ่ม "ออมเงิน" เพื่อเริ่มออม</p></div></td></tr>`;
     return;
   }
-  // Sort based on state
-  const sorted = [...rows].sort((a, b) => {
-    const dir = state.savingsSortDir === 'asc' ? 1 : -1;
-    if (state.savingsSortCol === 'date')   return dir * (new Date(a.date) - new Date(b.date));
-    if (state.savingsSortCol === 'type')   return dir * (a.type || '').localeCompare(b.type || '');
-    if (state.savingsSortCol === 'amount') return dir * ((parseFloat(a.amount)||0) - (parseFloat(b.amount)||0));
-    if (state.savingsSortCol === 'description') return dir * (a.description||'').localeCompare(b.description||'');
-    return 0;
-  });
+  // Sort based on state (pre-compute keys for date/amount)
+  const sDir = state.savingsSortDir === 'asc' ? 1 : -1;
+  const sorted = [...rows];
+  if (state.savingsSortCol === 'date') {
+    sorted.forEach(r => { r._ts = r.date ? new Date(r.date).getTime() : 0; });
+    sorted.sort((a, b) => sDir * (a._ts - b._ts));
+  } else if (state.savingsSortCol === 'amount') {
+    sorted.forEach(r => { r._amt = parseFloat(r.amount) || 0; });
+    sorted.sort((a, b) => sDir * (a._amt - b._amt));
+  } else if (state.savingsSortCol === 'type') {
+    sorted.sort((a, b) => sDir * (a.type || '').localeCompare(b.type || ''));
+  } else if (state.savingsSortCol === 'description') {
+    sorted.sort((a, b) => sDir * (a.description || '').localeCompare(b.description || ''));
+  }
   tbody.innerHTML = sorted.map(r => {
     const amt  = parseFloat(r.amount) || 0;
     const isDeposit = r.type === 'deposit';
@@ -2988,11 +3005,12 @@ function fmt(amount) {
   return '฿' + n.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
+const _TH_MONTHS_SHORT = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 function fmtDate(dateStr) {
   if (!dateStr) return '-';
   try {
     const d = new Date(dateStr);
-    return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+    return d.getDate() + ' ' + _TH_MONTHS_SHORT[d.getMonth() + 1] + ' ' + (d.getFullYear() + 543);
   } catch { return dateStr; }
 }
 
@@ -3012,8 +3030,7 @@ function isSavingsTx(tx) {
 
 function getCatInfo(catId, type) {
   if (!catId) return { id: '', name: 'อื่นๆ', icon: '📦', color: '#6b7280' };
-  const allCats = [...CATEGORIES.income, ...CATEGORIES.expense, ...CATEGORIES.fixed];
-  const found = allCats.find(c => c.id === catId);
+  const found = _CAT_MAP[catId];
   if (found) return found;
   // If it's a short string with non-ASCII lead → treat as custom emoji
   const s = String(catId).trim();
