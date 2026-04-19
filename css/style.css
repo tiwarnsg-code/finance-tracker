@@ -269,7 +269,7 @@ body {
 .login-logo {
   text-align: center; margin-bottom: 32px;
 }
-.login-logo .logo-icon { font-size: 48px; display: block; margin-bottom: 10px; }
+.login-logo .logo-img { width: 90px; height: auto; display: block; margin: 0 auto 12px; }
 .login-logo h1 {
   font-size: 22px; font-weight: 800; color: #1e293b; margin-bottom: 4px;
 }
@@ -435,7 +435,7 @@ body {
   padding: 20px 18px 16px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
-.sidebar-logo .logo-icon { font-size: 24px; }
+.sidebar-logo-img { width: 36px; height: 36px; object-fit: contain; filter: invert(1) brightness(10); }
 .sidebar-logo .logo-text { color: white; font-weight: 700; font-size: 16px; }
 .sidebar-logo .logo-sub { color: rgba(255,255,255,0.4); font-size: 11px; margin-top: 1px; }
 
